@@ -7,7 +7,7 @@ interface DocumentResponse {
   fileContent?: string;
 }
 
-const API_URL = 'http://localhost:3000/api/documents';
+const API_URL = 'https://makjuz-payroll-backend.onrender.com/api/documents';
 
 const axiosInstance = axios.create({
   baseURL: API_URL

@@ -1,6 +1,6 @@
 import axios, { AxiosError } from 'axios';
 
-const API_URL = 'http://localhost:3000/api/campaigns';
+const API_URL = 'https://makjuz-payroll-backend.onrender.com/api/campaigns';
 
 // Create axios instance with base configuration
 const axiosInstance = axios.create({

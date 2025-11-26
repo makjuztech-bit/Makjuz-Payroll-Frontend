@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:3000/api/payruns';
+const API_URL = 'https://makjuz-payroll-backend.onrender.com/api/payruns';
 
 const axiosInstance = axios.create({
   baseURL: API_URL

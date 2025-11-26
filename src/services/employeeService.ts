@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { Employee } from '../context/CompanyContext';
 
-const API_URL = 'http://localhost:3000/api/employees';
+const API_URL = 'https://makjuz-payroll-backend.onrender.com/api/employees';
 
 const axiosInstance = axios.create({
   baseURL: API_URL
