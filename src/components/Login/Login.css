@@ -1,0 +1,154 @@
+* {
+    box-sizing: border-box;
+  }
+  
+  body, html {
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', sans-serif;
+    height: 100vh;
+    background: linear-gradient(135deg, #000, #333);
+    color: #fff;
+  }
+  
+  .glass-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+  }
+  
+  .glass-card {
+    background: rgba(9, 11, 119, 0.158);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    padding: 30px;
+    width: 350px;
+    border-radius: 20px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    text-align: center;
+  }
+  
+  .glass-title {
+    font-size: 26px;
+    margin-bottom: 8px;
+    font-weight: bold;
+  }
+  .glass-title span {
+    color: #00d4ff;
+  }
+  
+  .glass-subtitle {
+    font-size: 16px;
+    margin-bottom: 5px;
+  }
+  
+  .glass-desc {
+    font-size: 13px;
+    color: #aaa;
+    margin-bottom: 20px;
+  }
+  
+  .input-group {
+    position: relative;
+    margin-bottom: 20px;
+  }
+  
+  .input-group .icon {
+    position: absolute;
+    top: 50%;
+    left: 12px;
+    transform: translateY(-50%);
+    color: #ccc;
+    font-size: 16px;
+  }
+  input,
+  button {
+    transition: all 0.3s ease;
+  }
+  .input-group input {
+    width: 100%;
+    padding: 12px 40px 12px 40px;
+    background-color: rgba(255, 255, 255, 0.08);
+    border: none;
+    border-radius: 12px;
+    color: #fff;
+    font-size: 14px;
+  }
+  
+  .input-group input:focus {
+    outline: none;
+    background-color: rgba(255, 255, 255, 0.15);
+  }
+  input:focus {
+    border: 1px solid #00d4ff;
+  }
+  .toggle-password {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    color: #ccc;
+    font-size: 16px;
+  }
+  .toggle-password:hover {
+    color: #11a6c4;
+  }
+  
+  .utility {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    margin-bottom: 15px;
+    color: #ccc;
+  }
+  .utility a {
+    color: #00d4ff;
+    text-decoration: none;
+  }
+  .utility a:hover {
+    text-decoration: underline;
+  }
+  
+  button {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    background-color: #00d4ff;
+    color: #000;
+    font-weight: bold;
+    border-radius: 10px;
+    font-size: 15px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+  }
+  button:hover {
+    background-color: #00a3d6;
+      transform: scale(1.03);
+    
+  }
+  
+  .error {
+    color: red;
+    font-size: 13px;
+    margin-top: 10px;
+  }
+  @media (max-width: 400px) {
+    .glass-card {
+      width: 90%;
+      padding: 20px;
+    }
+  
+    .glass-title {
+      font-size: 22px;
+    }
+  
+    .input-group input {
+      font-size: 13px;
+    }
+  
+    button {
+      font-size: 14px;
+    }
+  }
