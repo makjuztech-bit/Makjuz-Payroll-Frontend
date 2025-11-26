@@ -4,7 +4,7 @@ import { FaUser, FaLock } from 'react-icons/fa';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
 
-const API_URL = 'http://localhost:3000/api/auth';
+const API_URL = 'https://makjuz-payroll-backend.onrender.com/api/auth';
 
 const Login: React.FC = () => {
   const [username, setUsername] = useState('');
