@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Card, 
-  Typography, 
-  Button, 
-  Table, 
+import {
+  Card,
+  Typography,
+  Button,
+  Table,
   Upload,
   Space,
   message,
@@ -35,12 +35,12 @@ const DocumentsPage: React.FC = () => {
   useEffect(() => {
     const fetchEmployees = async () => {
       if (!selectedCompany?._id) return;
-      
+
       setLoading(true);
       try {
         const data = await employeeService.getAllEmployees(selectedCompany._id);
         setEmployees(data);
-        
+
         // Fetch documents for all employees
         const documents: Record<string, { fileName: string; uploadedAt: string }> = {};
         for (const employee of data) {
@@ -99,7 +99,7 @@ const DocumentsPage: React.FC = () => {
     }
   };
 
-  const handleView  = async (employeeId: number) => {
+  const handleView = async (employeeId: number) => {
     try {
       const doc = await documentService.getEmployeeDocument(employeeId.toString());
       if (doc) {
@@ -131,7 +131,7 @@ const DocumentsPage: React.FC = () => {
   const filteredEmployees = employees.filter(emp => {
     const searchLower = searchText.toLowerCase();
     return emp.empIdNo.toLowerCase().includes(searchLower) ||
-           emp.name.toLowerCase().includes(searchLower);
+      emp.name.toLowerCase().includes(searchLower);
   });
 
   const columns = [
@@ -160,7 +160,15 @@ const DocumentsPage: React.FC = () => {
           </Space>
         ) : (
           <Upload
-            customRequest={({ file }) => handleUpload(record.id, { file })}
+            customRequest={async ({ file, onSuccess, onError }) => {
+              try {
+                // @ts-ignore
+                await handleUpload(record.id, { file });
+                onSuccess?.("ok");
+              } catch (err) {
+                onError?.(err as Error);
+              }
+            }}
             showUploadList={false}
           >
             <Button type="primary" icon={<UploadOutlined />}>
@@ -176,15 +184,15 @@ const DocumentsPage: React.FC = () => {
       render: (_: any, record: Employee) => (
         employeeDocuments[record.id] ? (
           <Space>
-            <Button 
-              type="text" 
-              icon={<EyeOutlined />} 
-              onClick={() => handleView (record.id)}
+            <Button
+              type="text"
+              icon={<EyeOutlined />}
+              onClick={() => handleView(record.id)}
             />
-            <Button 
-              type="text" 
-              danger 
-              icon={<DeleteOutlined />} 
+            <Button
+              type="text"
+              danger
+              icon={<DeleteOutlined />}
               onClick={() => handleDelete(record.id)}
             />
           </Space>

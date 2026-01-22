@@ -62,7 +62,7 @@ export const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({ onAdd, compa
       dateOfBirth: dobValue
     };
     console.log('Processed values:', processedValues);
-    
+
     // Only send if dateOfBirth is not empty
     if (processedValues.dateOfBirth) {
       onAdd(processedValues);
@@ -116,31 +116,31 @@ export const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({ onAdd, compa
 
           <Row gutter={16}>
             <Col span={8}>
-              <Form.Item 
-                name="dateOfBirth" 
-                label="Date of Birth" 
+              <Form.Item
+                name="dateOfBirth"
+                label="Date of Birth"
                 rules={[
                   { required: true, message: 'Please select date of birth' },
                   {
                     validator: (_, value) => {
                       if (!value) return Promise.reject(new Error('Date of birth is required'));
-                      
+
                       const dob = new Date(value);
                       const today = new Date();
-                      
+
                       // Check if date is valid
                       if (isNaN(dob.getTime())) {
                         return Promise.reject(new Error('Please enter a valid date'));
                       }
-                      
+
                       const age = today.getFullYear() - dob.getFullYear();
                       const monthDiff = today.getMonth() - dob.getMonth();
-                      
+
                       let actualAge = age;
                       if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
                         actualAge = age - 1;
                       }
-                      
+
                       if (actualAge < 18) {
                         return Promise.reject(new Error('Employee must be at least 18 years old'));
                       }
@@ -154,14 +154,7 @@ export const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({ onAdd, compa
             </Col>
             <Col span={8}>
               <Form.Item name="department" label="Department" rules={[{ required: true }]}>
-                <Select>
-                  <Select.Option value="HR">HR</Select.Option>
-                  <Select.Option value="Engineering">Engineering</Select.Option>
-                  <Select.Option value="Finance">Finance</Select.Option>
-                  <Select.Option value="Operations">Operations</Select.Option>
-                  <Select.Option value="Marketing">Marketing</Select.Option>
-                  <Select.Option value="Sales">Sales</Select.Option>
-                </Select>
+                <Input placeholder="Enter Department" />
               </Form.Item>
             </Col>
             <Col span={8}>
@@ -188,7 +181,7 @@ export const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({ onAdd, compa
             </Col>
             <Col span={8}>
               <Form.Item name="company" label="Company" rules={[{ required: true }]}>
-                <Input/>
+                <Input />
               </Form.Item>
             </Col>
           </Row>
@@ -205,6 +198,7 @@ export const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({ onAdd, compa
                 <Select>
                   <Select.Option value="Wages">Wages</Select.Option>
                   <Select.Option value="Salary">Salary</Select.Option>
+                  <Select.Option value="Stipend">Stipend</Select.Option>
                 </Select>
               </Form.Item>
             </Col>
@@ -263,7 +257,22 @@ export const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({ onAdd, compa
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="emergencyContactNumber" label="Emergency Contact Number" rules={[{ required: true }]}>
+              <Form.Item
+                name="emergencyContactNumber"
+                label="Emergency Contact Number"
+                dependencies={['contactNumber']}
+                rules={[
+                  { required: true },
+                  ({ getFieldValue }) => ({
+                    validator(_, value) {
+                      if (!value || getFieldValue('contactNumber') !== value) {
+                        return Promise.resolve();
+                      }
+                      return Promise.reject(new Error('Emergency contact cannot be same as contact number'));
+                    },
+                  }),
+                ]}
+              >
                 <Input />
               </Form.Item>
             </Col>
