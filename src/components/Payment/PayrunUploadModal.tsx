@@ -1,20 +1,21 @@
-import React, { useState } from 'react';
-import { 
-  Modal, Button, Upload, message, Form, Select, Space, Typography, 
-  Steps, Result, Table, Tag, Alert, Divider 
+import React, { useState, useEffect } from 'react';
+import {
+  Modal, Button, Upload, App, Form, Select, Space, Typography,
+  Steps, Result, Table, Tag, Alert, Collapse, Tooltip
 } from 'antd';
-import { 
-  UploadOutlined, FileExcelOutlined, 
-  CheckCircleOutlined, CloseCircleOutlined, 
-  DownloadOutlined 
+import {
+  UploadOutlined, FileExcelOutlined,
+  DownloadOutlined, SettingOutlined
 } from '@ant-design/icons';
 import type { UploadProps } from 'antd';
-import { RcFile } from 'antd/es/upload';
 import payrunService from '../../services/payrunService';
 import dayjs from 'dayjs';
+import * as XLSX from 'xlsx';
+import TemplateEditor, { TemplateColumn } from '../Common/TemplateEditor';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 const { Option } = Select;
+const { Panel } = Collapse;
 
 interface PayrunUploadModalProps {
   visible: boolean;
@@ -36,276 +37,286 @@ interface UploadResult {
   totalProcessed: number;
 }
 
+const DEFAULT_PAYRUN_TEMPLATE: TemplateColumn[] = [
+  { key: 'empId', name: 'Employee ID', required: true, type: 'string', systemLabel: 'Employee ID' },
+  { key: 'name', name: 'Trainee Name', required: true, type: 'string', systemLabel: 'Name' },
+  { key: 'presentDays', name: 'Present Days', required: true, type: 'number', systemLabel: 'Present Days' },
+  { key: 'holidays', name: 'Holidays', required: true, type: 'number', systemLabel: 'Holidays' },
+  { key: 'otHours', name: 'OT Hours', required: false, type: 'number', systemLabel: 'OT Hours' },
+  { key: 'totalFixedDays', name: 'Total Fixed Days', required: true, type: 'number', systemLabel: 'Total Fixed Days' },
+  { key: 'fixedStipend', name: 'Fixed Stipend', required: true, type: 'number', systemLabel: 'Fixed Stipend' },
+  { key: 'specialAllowance', name: 'Special Allowance', required: false, type: 'number', systemLabel: 'Special Allowance' },
+  { key: 'transport', name: 'Transport', required: false, type: 'number', systemLabel: 'Transport' },
+  { key: 'canteen', name: 'Canteen', required: false, type: 'number', systemLabel: 'Canteen' },
+  { key: 'managementFee', name: 'Management Fee', required: false, type: 'number', systemLabel: 'Management Fee' },
+  { key: 'insurance', name: 'Insurance', required: false, type: 'number', systemLabel: 'Insurance' },
+  { key: 'lop', name: 'LOP', required: false, type: 'number', systemLabel: 'LOSS OF PAY' },
+  { key: 'remarks', name: 'Remarks', required: false, type: 'string', systemLabel: 'Remarks' },
+  { key: 'bankAccount', name: 'Bank Account', required: false, type: 'string', systemLabel: 'Bank Account' },
+];
+
 const PayrunUploadModal: React.FC<PayrunUploadModalProps> = ({
   visible,
   onClose,
   onSuccess,
   companyId
 }) => {
+  const { message } = App.useApp();
   const [form] = Form.useForm();
   const [fileList, setFileList] = useState<any[]>([]);
   const [uploading, setUploading] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [uploadResult, setUploadResult] = useState<UploadResult | null>(null);
+  const [previewData, setPreviewData] = useState<any[]>([]);
+  const [isConfirming, setIsConfirming] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Get current month and year for default values
+  // Template Editor State
+  const [templateColumns, setTemplateColumns] = useState<TemplateColumn[]>(DEFAULT_PAYRUN_TEMPLATE);
+  const [showTemplateEditor, setShowTemplateEditor] = useState(false);
+
   const currentMonth = dayjs().format('MMMM');
   const currentYear = dayjs().year().toString();
 
-  const beforeUpload = (file: RcFile) => {
-    const isExcel = 
-      file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || 
-      file.type === 'application/vnd.ms-excel';
-    
-    if (!isExcel) {
-      message.error('You can only upload Excel files!');
+  // Load saved template
+  useEffect(() => {
+    if (companyId) {
+      const saved = localStorage.getItem(`payrun_import_template_${companyId}`);
+      if (saved) {
+        try {
+          setTemplateColumns(JSON.parse(saved));
+        } catch (e) {
+          console.error('Failed to load saved template', e);
+        }
+      } else {
+        setTemplateColumns(DEFAULT_PAYRUN_TEMPLATE);
+      }
     }
-    
-    const isLt5M = file.size / 1024 / 1024 < 5;
-    if (!isLt5M) {
-      message.error('File must be smaller than 5MB!');
+  }, [companyId]);
+
+  const saveTemplate = (newColumns: TemplateColumn[]) => {
+    setTemplateColumns(newColumns);
+    if (companyId) {
+      localStorage.setItem(`payrun_import_template_${companyId}`, JSON.stringify(newColumns));
     }
-    
-    return false; // Prevent automatic upload
+  };
+
+  const handleFilePreview = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+        if (jsonData.length < 1) {
+          message.error('File is empty');
+          return;
+        }
+
+        // Just preview the first few data rows
+        const headers = jsonData[0] as string[];
+        const rows = jsonData.slice(1, 11).map((row: any) => {
+          const obj: any = {};
+          headers.forEach((h, idx) => {
+            if (h) obj[h] = row[idx];
+          });
+          return obj;
+        });
+
+        setPreviewData(rows);
+        setIsConfirming(true);
+      } catch (err) {
+        console.error('Preview error:', err);
+        message.error('Failed to preview file');
+      }
+    };
+    reader.readAsArrayBuffer(file);
   };
 
   const handleUpload = async () => {
     try {
       await form.validateFields();
-      
       if (fileList.length === 0) {
-        message.error('Please select a file to upload');
+        message.error('Please select a file');
         return;
       }
-      
+
       const { month, year } = form.getFieldsValue();
       const file = fileList[0].originFileObj;
-      
+
       setUploading(true);
-      setErrorMessage(null); // Clear any previous error messages
-      
+      setErrorMessage(null);
+
+      // Create mapping from template config: { key: 'Custom Header Name' }
+      const columnMapping = templateColumns.reduce((acc, col) => {
+        acc[col.key] = col.name;
+        return acc;
+      }, {} as Record<string, string>);
+
       try {
-        const result = await payrunService.uploadPayrunExcel(file, month, year, companyId);
+        const result = await payrunService.uploadPayrunExcel(file, month, year, companyId, columnMapping);
         setUploadResult(result);
         setCurrentStep(1);
-        
+        setIsConfirming(false);
+
         if (result.errors.length === 0) {
-          message.success('Successfully processed all employee records!');
+          message.success('Successfully processed all records!');
+          onSuccess();
         } else {
           message.warning(`Processed with ${result.errors.length} errors.`);
         }
       } catch (error: any) {
-        // Handle the conflict error for existing month data
-        if (error.response?.status === 409) {
-          const errorMsg = error.response.data.message || `Data already exists for ${month} ${year}`;
-          setErrorMessage(errorMsg);
-          message.error(errorMsg);
-        } else {
-          const errorMsg = error.response?.data?.message || error.message || 'Upload failed';
-          setErrorMessage(errorMsg);
-          message.error('Upload failed: ' + errorMsg);
-        }
+        const errorMsg = error.response?.data?.message || error.message || 'Upload failed';
+        setErrorMessage(errorMsg);
+        message.error(errorMsg);
       } finally {
         setUploading(false);
       }
-    } catch (error) {
-      // Form validation failed
-    }
+    } catch (error) { }
   };
 
-  const handleDownloadTemplate = async () => {
+  const handleDownloadTemplate = () => {
     try {
-      const blob = await payrunService.getPayrunTemplate();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'payrun_template.xlsx';
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      // Use configured columns for headers
+      const headers = ["Sr-No-", ...templateColumns.map(col => col.name)];
+
+      // Create a sample row
+      const sampleRow = templateColumns.map(col => {
+        if (col.key === 'empId') return 'EMP1001';
+        if (col.key === 'name') return 'John Doe';
+        if (col.type === 'number') return 0;
+        return '';
+      });
+
+      const data = [
+        headers,
+        ["1", ...sampleRow]
+      ];
+
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet(data);
+      ws['!cols'] = headers.map(() => ({ width: 18 }));
+
+      XLSX.utils.book_append_sheet(wb, ws, "Payrun Template");
+      XLSX.writeFile(wb, "Payrun_Template.xlsx");
+      message.success('Template downloaded successfully');
     } catch (error) {
-      message.error('Failed to download template');
+      console.error('Template gen error:', error);
+      message.error('Failed to generate template');
     }
   };
 
-  const handleReset = () => {
-    setFileList([]);
-    setUploadResult(null);
-    setErrorMessage(null);
-    setCurrentStep(0);
-    form.resetFields();
-  };
 
-  const handleFinish = () => {
-    if (uploadResult && uploadResult.success.length > 0) {
-      // Call the onSuccess callback with summary information
-      onSuccess();
-      
-      // Close the modal
-      onClose();
-    } else {
-      // If no success records, just close
-      onClose();
-    }
-  };
 
   const uploadProps: UploadProps = {
-    onRemove: file => {
-      setFileList([]);
+    onRemove: () => setFileList([]),
+    beforeUpload: (file) => {
+      setFileList([{ originFileObj: file, name: file.name }]);
+      handleFilePreview(file);
+      return false;
     },
-    beforeUpload,
     fileList,
-    onChange: ({ fileList }) => {
-      setFileList(fileList.slice(-1)); // Only keep the latest file
-    },
   };
 
   const successColumns = [
-    {
-      title: 'Employee ID',
-      dataIndex: 'employeeId',
-      key: 'employeeId',
-    },
-    {
-      title: 'Name',
-      dataIndex: 'name',
-      key: 'name',
-    },
-    {
-      title: 'Present Days',
-      dataIndex: ['calculatedPayrun', 'presentDays'],
-      key: 'presentDays',
-    },
-    {
-      title: 'Net Earning',
-      dataIndex: ['calculatedPayrun', 'finalNetpay'],
-      key: 'finalNetpay',
-      render: (value: number) => `₹${value.toFixed(2)}`
-    },
-    {
-      title: 'Status',
-      key: 'status',
-      render: () => (
-        <Tag color="success">
-          <CheckCircleOutlined /> Processed
-        </Tag>
-      ),
-    },
-  ];
-
-  const errorColumns = [
-    {
-      title: 'Row Data',
-      dataIndex: 'row',
-      key: 'row',
-      render: (row: any) => (
-        <Text ellipsis={{ tooltip: JSON.stringify(row, null, 2) }}>
-          {row && row.ID ? `ID: ${row.ID}, Name: ${row['TRAINEE NAME'] || 'N/A'}` : 'Invalid Row'}
-        </Text>
-      ),
-    },
-    {
-      title: 'Error',
-      dataIndex: 'error',
-      key: 'error',
-    },
-    {
-      title: 'Status',
-      key: 'status',
-      render: () => (
-        <Tag color="error">
-          <CloseCircleOutlined /> Failed
-        </Tag>
-      ),
-    },
+    { title: 'Employee ID', dataIndex: 'employeeId', key: 'employeeId' },
+    { title: 'Name', dataIndex: 'name', key: 'name' },
+    { title: 'Net Pay', dataIndex: ['calculatedPayrun', 'finalNetpay'], key: 'finalNetpay', render: (v: number | undefined) => `₹${v?.toFixed(2) || 0}` },
+    { title: 'Status', key: 'status', render: () => <Tag color="success">Processed</Tag> },
   ];
 
   const steps = [
     {
-      title: 'Upload File',
+      title: 'Upload and Confirm',
       content: (
         <>
-          <Alert
-            message="Upload Excel File for Payrun"
-            description={
-              <div>
-                <p>Upload an Excel file with employee payrun data. Make sure the file has the required columns and proper employee IDs that exist in the system.</p>
-                <p><strong>Important:</strong> Employee IDs should match exactly as they appear in the system (e.g., LIV-1, LIV-2). The system will try to match IDs in various formats, but exact matches are preferred.</p>
+          <Form form={form} layout="vertical">
+            <Space style={{ width: '100%', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+              <Form.Item name="month" label="Month" initialValue={currentMonth} rules={[{ required: true }]} style={{ width: 150 }}>
+                <Select>
+                  {['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].map(m => (
+                    <Option key={m} value={m}>{m}</Option>
+                  ))}
+                </Select>
+              </Form.Item>
+              <Form.Item name="year" label="Year" initialValue={currentYear} rules={[{ required: true }]} style={{ width: 100 }}>
+                <Select>
+                  {[0, 1, 2].map(i => {
+                    const year = dayjs().year() - 1 + i;
+                    return <Option key={year} value={year.toString()}>{year}</Option>;
+                  })}
+                </Select>
+              </Form.Item>
+              <div style={{ marginTop: 24 }}>
+                <Space>
+                  <Button type="default" icon={<DownloadOutlined />} onClick={handleDownloadTemplate}>
+                    Download Template
+                  </Button>
+                  <Tooltip title="Edit Template Columns">
+                    <Button icon={<SettingOutlined />} onClick={() => setShowTemplateEditor(true)}>
+                      Edit Template
+                    </Button>
+                  </Tooltip>
+                </Space>
               </div>
-            }
-            type="info"
-            showIcon
-            style={{ marginBottom: 16 }}
-          />
-          
-          {errorMessage && (
-            <Alert
-              message="Import Error"
-              description={errorMessage}
-              type="error"
-              showIcon
-              style={{ marginBottom: 16 }}
+            </Space>
+
+            <TemplateEditor
+              visible={showTemplateEditor}
+              onClose={() => setShowTemplateEditor(false)}
+              onSave={saveTemplate}
+              availableFields={DEFAULT_PAYRUN_TEMPLATE.map(f => ({
+                key: f.key,
+                label: f.systemLabel || f.name,
+                type: f.type,
+                required: f.required
+              }))}
+              currentColumns={templateColumns}
+              title="Edit Payrun Import Template"
+              allowCustomFields={false} // Payrun backend is strict, disallow loose fields for now
             />
-          )}
-          
-          <Form
-            form={form}
-            layout="vertical"
-          >
-            <Form.Item
-              name="month"
-              label="Month"
-              initialValue={currentMonth}
-              rules={[{ required: true, message: 'Please select month' }]}
-            >
-              <Select>
-                {[
-                  'January', 'February', 'March', 'April',
-                  'May', 'June', 'July', 'August',
-                  'September', 'October', 'November', 'December'
-                ].map(month => (
-                  <Option key={month} value={month}>{month}</Option>
-                ))}
-              </Select>
-            </Form.Item>
-            
-            <Form.Item
-              name="year"
-              label="Year"
-              initialValue={currentYear}
-              rules={[{ required: true, message: 'Please select year' }]}
-            >
-              <Select>
-                {[...Array(5)].map((_, i) => {
-                  const year = dayjs().year() - 2 + i;
-                  return <Option key={year} value={year.toString()}>{year}</Option>;
-                })}
-              </Select>
-            </Form.Item>
-            
-            <Form.Item label="Payrun Excel File">
-              <Upload 
-                {...uploadProps}
-                maxCount={1}
-                listType="text"
-              >
-                <Button icon={<UploadOutlined />}>Select File</Button>
-              </Upload>
-            </Form.Item>
-            
-            <Divider />
-            
-            <Button 
-              type="dashed" 
-              icon={<DownloadOutlined />} 
-              onClick={handleDownloadTemplate}
-              style={{ marginBottom: 16 }}
-            >
-              Download Template
-            </Button>
+
+            {!isConfirming ? (
+              <div style={{ textAlign: 'center', padding: '40px', border: '2px dashed #d9d9d9', borderRadius: '12px', marginTop: 16 }}>
+                <Upload {...uploadProps} showUploadList={false}>
+                  <Button icon={<UploadOutlined />} size="large">Select Payrun Excel</Button>
+                </Upload>
+              </div>
+            ) : (
+              <div style={{ marginTop: 20 }}>
+                <Alert
+                  message="Confirm Upload"
+                  description="Please review the data preview below. Are you sure you want to process this payrun?"
+                  type="warning"
+                  showIcon
+                  style={{ marginBottom: 16 }}
+                />
+                <Text strong>Data Preview (First 5 rows):</Text>
+                <Table
+                  dataSource={previewData.slice(0, 5)}
+                  columns={Object.keys(previewData[0] || {}).slice(0, 6).map(k => ({ title: k, dataIndex: k, key: k }))}
+                  size="small"
+                  pagination={false}
+                  bordered
+                  style={{ marginTop: 8 }}
+                />
+                <div style={{ marginTop: 16, textAlign: 'right' }}>
+                  <Space>
+                    <Button onClick={() => setIsConfirming(false)}>Change File</Button>
+                    <Button type="primary" onClick={handleUpload} loading={uploading}>
+                      Yes, Process Payrun
+                    </Button>
+                  </Space>
+                </div>
+              </div>
+            )}
           </Form>
+          {errorMessage && (
+            <Alert message="Import Error" description={errorMessage} type="error" showIcon style={{ marginTop: 16 }} />
+          )}
         </>
       ),
     },
@@ -315,86 +326,38 @@ const PayrunUploadModal: React.FC<PayrunUploadModalProps> = ({
         <div>
           <Result
             status={uploadResult.errors.length === 0 ? "success" : "warning"}
-            title={
-              uploadResult.errors.length === 0
-                ? "All records processed successfully!"
-                : `Processed with ${uploadResult.errors.length} errors`
-            }
-            subTitle={`Total Processed: ${uploadResult.totalProcessed}, Success: ${uploadResult.success.length}, Errors: ${uploadResult.errors.length}`}
+            title={uploadResult.errors.length === 0 ? "Processed Successfully!" : "Processed with Errors"}
+            subTitle={`Total: ${uploadResult.totalProcessed}, Success: ${uploadResult.success.length}, Errors: ${uploadResult.errors.length}`}
           />
-          
           {uploadResult.success.length > 0 && (
-            <>
-              <Title level={5}>Successfully Processed ({uploadResult.success.length})</Title>
-              <Table 
-                dataSource={uploadResult.success} 
-                columns={successColumns} 
-                rowKey="employeeId"
-                pagination={{ pageSize: 5 }}
-              />
-            </>
+            <Table dataSource={uploadResult.success} columns={successColumns} rowKey="employeeId" pagination={{ pageSize: 5 }} />
           )}
-          
           {uploadResult.errors.length > 0 && (
-            <>
-              <Title level={5}>Errors ({uploadResult.errors.length})</Title>
-              <Table 
-                dataSource={uploadResult.errors} 
-                columns={errorColumns} 
-                rowKey={(record) => `${record.row?.ID || Math.random()}`}
-                pagination={{ pageSize: 5 }}
-              />
-            </>
+            <Collapse style={{ marginTop: 16 }}>
+              <Panel header="View Errors" key="1">
+                {uploadResult.errors.map((err, i) => (
+                  <div key={i} style={{ color: 'red', marginBottom: 4 }}>Row: {JSON.stringify(err.row)} - Error: {err.error}</div>
+                ))}
+              </Panel>
+            </Collapse>
           )}
         </div>
       ) : null,
     },
   ];
-  
-  const modalFooter = currentStep === 0 
-    ? [
-        <Button key="back" onClick={onClose}>
-          Cancel
-        </Button>,
-        <Button 
-          key="submit" 
-          type="primary" 
-          onClick={handleUpload} 
-          loading={uploading}
-          disabled={fileList.length === 0}
-        >
-          Upload and Process
-        </Button>,
-      ]
-    : [
-        <Button key="reset" onClick={handleReset}>
-          Upload Another
-        </Button>,
-        <Button key="finish" type="primary" onClick={handleFinish}>
-          Finish
-        </Button>,
-      ];
 
   return (
     <Modal
-      title={
-        <Space>
-          <FileExcelOutlined style={{ color: '#52c41a' }} />
-          <span>Import Payrun Data</span>
-        </Space>
-      }
+      title={<span><FileExcelOutlined style={{ color: '#52c41a', marginRight: 8 }} />Import Payrun</span>}
       open={visible}
       onCancel={onClose}
-      width={800}
-      footer={modalFooter}
+      width={900}
+      footer={currentStep === 1 ? [<Button key="finish" type="primary" onClick={onClose}>Finish</Button>] : null}
     >
-      <Steps current={currentStep} items={steps} style={{ marginBottom: 24 }} />
-      
-      <div className="steps-content">
-        {steps[currentStep].content}
-      </div>
+      <Steps current={currentStep} items={steps.map(s => ({ title: s.title }))} style={{ marginBottom: 24 }} />
+      <div className="steps-content">{steps[currentStep].content}</div>
     </Modal>
   );
 };
 
-export default PayrunUploadModal; 
+export default PayrunUploadModal;

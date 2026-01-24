@@ -46,8 +46,9 @@ export interface Employee {
   otHours: number;
   totalDeductions?: number;
   finalNetpay?: number;
-  salaryType?:string;
-  employeeCategory?:string;
+  salaryType?: string;
+  employeeCategory?: string;
+  customFields?: Record<string, string>;
 }
 
 export interface EmployeeFormValues {
@@ -94,7 +95,7 @@ export const CompanyProvider: React.FC<{ children: ReactNode }> = ({
       try {
         const data = await companyService.getAllCompanies();
         setCompanies(data);
-        
+
         const savedCompanyId = localStorage.getItem('selectedCompanyId');
         if (savedCompanyId) {
           const savedCompany = data.find(c => c._id === savedCompanyId);
@@ -106,7 +107,7 @@ export const CompanyProvider: React.FC<{ children: ReactNode }> = ({
           setSelectedCompany(data[0]);
           localStorage.setItem('selectedCompanyId', data[0]._id);
         }
-        
+
         setError(null);
       } catch (err) {
         console.error('Error fetching companies:', err);

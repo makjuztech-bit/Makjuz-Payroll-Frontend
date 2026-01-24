@@ -1,5 +1,5 @@
 import React, { ReactNode, useState } from 'react';
-import { Layout, Menu, Select, Avatar, Badge, Button, Dropdown } from 'antd';
+import { Layout, Menu, Select, Avatar, Button, Dropdown } from 'antd';
 import { Link, useLocation } from 'react-router-dom';
 import {
   DashboardOutlined,
@@ -8,7 +8,6 @@ import {
   FileOutlined,
   BarChartOutlined,
   SettingOutlined,
-  BellOutlined,
   UserOutlined,
   CustomerServiceOutlined,
   GiftOutlined,
@@ -107,9 +106,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      <Sider 
-        collapsible 
-        collapsed={collapsed} 
+      <Sider
+        collapsible
+        collapsed={collapsed}
         onCollapse={setCollapsed}
         style={{
           background: '#1a1f37',
@@ -121,16 +120,16 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           bottom: 0,
         }}
       >
-        <div style={{ 
-          padding: '16px', 
+        <div style={{
+          padding: '16px',
           color: 'white',
           display: 'flex',
           alignItems: 'center',
           justifyContent: collapsed ? 'center' : 'flex-start'
         }}>
           {collapsed ? (
-            <h2 style={{ 
-              color: 'white', 
+            <h2 style={{
+              color: 'white',
               margin: 0,
               fontSize: '24px',
               fontWeight: 'bold'
@@ -146,10 +145,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           items={menuItems}
           style={{ background: '#1a1f37' }}
         />
-        <div style={{ 
-          padding: '16px', 
-          position: 'absolute', 
-          bottom: "46px", 
+        <div style={{
+          padding: '16px',
+          position: 'absolute',
+          bottom: "46px",
           width: '100%',
           display: 'flex',
           justifyContent: 'center'
@@ -158,7 +157,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             <Button
               type="text"
               icon={<CustomerServiceOutlined />}
-              style={{ 
+              style={{
                 color: 'white',
                 display: 'flex',
                 alignItems: 'center',
@@ -175,10 +174,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         </div>
       </Sider>
       <Layout style={{ marginLeft: collapsed ? 80 : 200, transition: 'all 0.2s' }}>
-        <Header style={{ 
-          padding: '0 16px', 
-          background: '#fff', 
-          display: 'flex', 
+        <Header style={{
+          padding: '0 16px',
+          background: '#fff',
+          display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           position: 'sticky',
@@ -207,20 +206,20 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             </Badge> */}
             {/* <SettingOutlined style={{ fontSize: '20px', color: '#722ed1' }} /> */}
             <Dropdown menu={{ items: userMenuItems }} trigger={['click']} placement="bottomRight">
-              <Avatar 
-                style={{ 
-                  backgroundColor: '#722ed1', 
-                  cursor: 'pointer' 
-                }} 
-                icon={<UserOutlined />} 
+              <Avatar
+                style={{
+                  backgroundColor: '#722ed1',
+                  cursor: 'pointer'
+                }}
+                icon={<UserOutlined />}
               />
             </Dropdown>
           </div>
         </Header>
-        <Content style={{ 
-          margin: '24px 16px', 
-          padding: 24, 
-          background: '#fff', 
+        <Content style={{
+          margin: '24px 16px',
+          padding: 24,
+          background: '#fff',
           minHeight: 280,
           borderRadius: '8px',
           boxShadow: '0 2px 8px rgba(0,0,0,0.06)'

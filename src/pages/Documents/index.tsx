@@ -9,122 +9,171 @@ import {
   message,
   Input,
   Row,
-  Col
+  Col,
+  Modal,
+  List,
+  Tooltip,
+  Divider
 } from 'antd';
 import {
-  UploadOutlined,
   FileOutlined,
   DeleteOutlined,
   SearchOutlined,
-  EyeOutlined
+  EyeOutlined,
+  DownloadOutlined,
+  PlusOutlined
 } from '@ant-design/icons';
 import { useCompany } from '../../context/CompanyContext';
 import employeeService from '../../services/employeeService';
-import documentService from '../../services/documentService';
+import documentService, { DocumentResponse } from '../../services/documentService';
 import type { Employee } from '../../context/CompanyContext';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 
 const DocumentsPage: React.FC = () => {
+  const [messageApi, contextHolder] = message.useMessage();
   const { selectedCompany } = useCompany();
-  const [employeeDocuments, setEmployeeDocuments] = useState<Record<string, { fileName: string; uploadedAt: string }>>({});
+  // Map employeeId -> Array of Documents
+  const [employeeDocuments, setEmployeeDocuments] = useState<Record<string, DocumentResponse[]>>({});
   const [searchText, setSearchText] = useState('');
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    const fetchEmployees = async () => {
-      if (!selectedCompany?._id) return;
+  // Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [currentEmployee, setCurrentEmployee] = useState<Employee | null>(null);
 
-      setLoading(true);
-      try {
-        const data = await employeeService.getAllEmployees(selectedCompany._id);
-        setEmployees(data);
+  const fetchAllData = async () => {
+    if (!selectedCompany?._id) return;
 
-        // Fetch documents for all employees
-        const documents: Record<string, { fileName: string; uploadedAt: string }> = {};
-        for (const employee of data) {
-          const doc = await documentService.getEmployeeDocument(employee.id.toString());
-          if (doc) {
-            documents[employee.id] = {
-              fileName: doc.fileName,
-              uploadedAt: doc.uploadedAt
-            };
+    setLoading(true);
+    try {
+      const data = await employeeService.getAllEmployees(selectedCompany._id);
+      setEmployees(data);
+
+      // Fetch documents for all employees in one batch
+      const employeeIds = data.map(e => e.id.toString());
+      if (employeeIds.length > 0) {
+        const docs = await documentService.getDocumentsBatch(employeeIds);
+
+        const documentsMap: Record<string, DocumentResponse[]> = {};
+
+        // Initialize arrays
+        employeeIds.forEach(id => {
+          documentsMap[id] = [];
+        });
+
+        // Group by employeeId
+        docs.forEach((doc: any) => {
+          if (doc.employeeId) {
+            if (!documentsMap[doc.employeeId]) {
+              documentsMap[doc.employeeId] = [];
+            }
+            documentsMap[doc.employeeId].push(doc);
           }
-        }
-        setEmployeeDocuments(documents);
-      } catch (error) {
-        console.error('Error fetching employees:', error);
-        message.error('Failed to fetch employees');
-      } finally {
-        setLoading(false);
+        });
+        setEmployeeDocuments(documentsMap);
+      } else {
+        setEmployeeDocuments({});
       }
-    };
 
-    fetchEmployees();
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      messageApi.error('Failed to fetch data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAllData();
   }, [selectedCompany]);
 
-  const handleUpload = async (employeeId: number, info: any) => {
-    const file = info.file;
-    if (!file) return;
+  const handleOpenModal = (employee: Employee) => {
+    setCurrentEmployee(employee);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setCurrentEmployee(null);
+  };
+
+  const handleUpload = async (file: File) => {
+    if (!currentEmployee) return;
 
     try {
-      const result = await documentService.uploadDocument(employeeId.toString(), file);
-      setEmployeeDocuments(prev => ({
-        ...prev,
-        [employeeId]: {
-          fileName: result.fileName,
-          uploadedAt: result.uploadedAt
-        }
-      }));
-      message.success(`${file.name} uploaded successfully`);
+      const result = await documentService.uploadDocument(currentEmployee.id.toString(), file);
+
+      // Update state locally
+      setEmployeeDocuments(prev => {
+        const empId = currentEmployee.id.toString();
+        const currentDocs = prev[empId] || [];
+        return {
+          ...prev,
+          [empId]: [result, ...currentDocs] // Add new doc to top
+        };
+      });
+
+      messageApi.success(`${file.name} uploaded successfully`);
     } catch (error) {
       console.error('Upload error:', error);
-      message.error(`${file.name} upload failed.`);
+      messageApi.error(`${file.name} upload failed.`);
     }
   };
 
-  const handleDelete = async (employeeId: number) => {
+  const handleDeleteDoc = async (docId: string, employeeId: string) => {
     try {
-      await documentService.deleteDocument(employeeId.toString());
+      await documentService.deleteDocument(docId);
+
       setEmployeeDocuments(prev => {
-        const newDocs = { ...prev };
-        delete newDocs[employeeId];
-        return newDocs;
+        const currentDocs = prev[employeeId] || [];
+        return {
+          ...prev,
+          [employeeId]: currentDocs.filter(d => d._id !== docId)
+        };
       });
-      message.success('Document deleted successfully');
+
+      messageApi.success('Document deleted successfully');
     } catch (error) {
       console.error('Delete error:', error);
-      message.error('Failed to delete document');
+      messageApi.error('Failed to delete document');
     }
   };
 
-  const handleView = async (employeeId: number) => {
+  const handleDownloadDoc = (doc: DocumentResponse) => {
     try {
-      const doc = await documentService.getEmployeeDocument(employeeId.toString());
-      if (doc) {
-        // Create a Blob from the base64 content
-        const byteCharacters = atob(doc.fileContent || '');
-        const byteNumbers = new Array(byteCharacters.length);
-        for (let i = 0; i < byteCharacters.length; i++) {
-          byteNumbers[i] = byteCharacters.charCodeAt(i);
-        }
-        const byteArray = new Uint8Array(byteNumbers);
-        const blob = new Blob([byteArray], { type: doc.fileType });
+      // If content is present, download it (it might not be full content based on API, but service seems to return full object)
+      // Wait, batch API usually returns full object? 
+      // If fileContent is huge, batch might optimize it out. But currently service code returns full docs.
 
-        // Create download link
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = doc.fileName;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
+      // If fileContent is missing (e.g. optimized backend), we might need to fetch individual doc. 
+      // Assuming current implementation returns content.
+      let content = doc.fileContent;
+      if (!content) {
+        messageApi.error("Document content missing. Try re-fetching/viewing individually not implemented yet for lightweight batch.");
+        return;
       }
+
+      const byteCharacters = atob(content);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: doc.fileType });
+
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = doc.fileName;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
     } catch (error) {
       console.error('Download error:', error);
-      message.error('Failed to download document');
+      messageApi.error('Failed to download document');
     }
   };
 
@@ -146,35 +195,16 @@ const DocumentsPage: React.FC = () => {
       key: 'name',
     },
     {
-      title: 'Document',
+      title: 'Documents',
       key: 'document',
       render: (_: any, record: Employee) => {
-        const hasDocument = employeeDocuments[record.id];
-        return hasDocument ? (
+        const docs = employeeDocuments[record.id] || [];
+        const count = docs.length;
+
+        return (
           <Space>
-            <FileOutlined />
-            {hasDocument.fileName}
-            <span style={{ color: '#888', fontSize: '12px' }}>
-              {new Date(hasDocument.uploadedAt).toLocaleDateString()}
-            </span>
+            <Text>{count} {count === 1 ? 'Document' : 'Documents'}</Text>
           </Space>
-        ) : (
-          <Upload
-            customRequest={async ({ file, onSuccess, onError }) => {
-              try {
-                // @ts-ignore
-                await handleUpload(record.id, { file });
-                onSuccess?.("ok");
-              } catch (err) {
-                onError?.(err as Error);
-              }
-            }}
-            showUploadList={false}
-          >
-            <Button type="primary" icon={<UploadOutlined />}>
-              Upload Document
-            </Button>
-          </Upload>
         );
       }
     },
@@ -182,21 +212,18 @@ const DocumentsPage: React.FC = () => {
       title: 'Actions',
       key: 'actions',
       render: (_: any, record: Employee) => (
-        employeeDocuments[record.id] ? (
-          <Space>
+        <Space>
+          <Tooltip title="Manage Documents">
             <Button
-              type="text"
+              type="primary"
+              ghost
               icon={<EyeOutlined />}
-              onClick={() => handleView(record.id)}
-            />
-            <Button
-              type="text"
-              danger
-              icon={<DeleteOutlined />}
-              onClick={() => handleDelete(record.id)}
-            />
-          </Space>
-        ) : null
+              onClick={() => handleOpenModal(record)}
+            >
+              View / Edit
+            </Button>
+          </Tooltip>
+        </Space>
       ),
     },
   ];
@@ -204,6 +231,7 @@ const DocumentsPage: React.FC = () => {
   return (
     <div>
       <Title level={3} style={{ marginBottom: 24 }}>Documents Management</Title>
+      {contextHolder}
 
       {selectedCompany ? (
         <Card variant="outlined" style={{ borderRadius: '8px' }}>
@@ -236,6 +264,72 @@ const DocumentsPage: React.FC = () => {
         </Card>
       )}
 
+      {/* Document Management Modal */}
+      <Modal
+        title={`Documents: ${currentEmployee?.name} (${currentEmployee?.empIdNo})`}
+        open={isModalOpen}
+        onCancel={handleCloseModal}
+        footer={[
+          <Button key="close" onClick={handleCloseModal}>Close</Button>
+        ]}
+        width={700}
+      >
+        <div style={{ marginBottom: 20 }}>
+          <Upload
+            customRequest={async ({ file, onSuccess, onError }) => {
+              try {
+                // @ts-ignore
+                await handleUpload(file);
+                onSuccess?.("ok");
+              } catch (err) {
+                onError?.(err as Error);
+              }
+            }}
+            showUploadList={false}
+            multiple
+          >
+            <Button type="primary" icon={<PlusOutlined />}>Add New Document</Button>
+          </Upload>
+        </div>
+
+        <Divider />
+
+        <List
+          itemLayout="horizontal"
+          dataSource={currentEmployee ? (employeeDocuments[currentEmployee.id] || []) : []}
+          renderItem={(item) => (
+            <List.Item
+              actions={[
+                <Button
+                  key="download"
+                  type="text"
+                  icon={<DownloadOutlined />}
+                  onClick={() => handleDownloadDoc(item)}
+                >
+                  Download
+                </Button>,
+                <Button
+                  key="delete"
+                  type="text"
+                  danger
+                  icon={<DeleteOutlined />}
+                  onClick={() => handleDeleteDoc(item._id, currentEmployee!.id.toString())}
+                >
+                  Delete
+                </Button>
+              ]}
+            >
+              <List.Item.Meta
+                avatar={<FileOutlined style={{ fontSize: '24px', color: '#1890ff' }} />}
+                title={item.fileName}
+                description={`Uploaded: ${new Date(item.uploadedAt).toLocaleString()}`}
+              />
+            </List.Item>
+          )}
+          locale={{ emptyText: "No documents uploaded yet" }}
+        />
+
+      </Modal>
 
     </div>
   );

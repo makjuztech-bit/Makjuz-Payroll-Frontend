@@ -1,13 +1,15 @@
 import axios from 'axios';
 
-interface DocumentResponse {
+export interface DocumentResponse {
+  _id: string;
   fileName: string;
   uploadedAt: string;
   fileType: string;
   fileContent?: string;
+  employeeId: string;
 }
 
-const API_URL = 'https://makjuz-payroll-backend.onrender.com/api/documents';
+const API_URL = `${import.meta.env.VITE_API_URL}/api/documents`;
 
 const axiosInstance = axios.create({
   baseURL: API_URL
@@ -31,7 +33,7 @@ const documentService = {
   uploadDocument: async (employeeId: string, file: File): Promise<DocumentResponse> => {
     try {
       const reader = new FileReader();
-      
+
       const fileContent = await new Promise<string>((resolve) => {
         reader.onload = () => {
           const base64String = reader.result as string;
@@ -53,26 +55,41 @@ const documentService = {
     }
   },
 
-  getEmployeeDocument: async (employeeId: string): Promise<DocumentResponse | null> => {
+  getEmployeeDocuments: async (employeeId: string): Promise<DocumentResponse[]> => {
     try {
       const response = await axiosInstance.get(`/${employeeId}`);
       return response.data;
     } catch (error) {
       if (axios.isAxiosError(error) && error.response?.status === 404) {
-        return null;
+        return [];
       }
       throw error;
     }
   },
 
-  deleteDocument: async (employeeId: string): Promise<void> => {
+  deleteDocument: async (documentId: string): Promise<void> => {
     try {
-      await axiosInstance.delete(`/${employeeId}`);
+      await axiosInstance.delete(`/${documentId}`);
     } catch (error) {
       console.error('Error deleting document:', error);
       throw error;
     }
+  },
+
+  getDocumentsBatch: async (employeeIds: string[]): Promise<DocumentResponse[]> => {
+    try {
+      const response = await axiosInstance.post('/batch', { employeeIds }, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching documents batch:', error);
+      throw error;
+    }
   }
 };
+
 
 export default documentService;

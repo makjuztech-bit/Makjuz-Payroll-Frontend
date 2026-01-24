@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { Company } from '../context/CompanyContext';
 
-const API_URL = 'https://makjuz-payroll-backend.onrender.com/api/companies';
+const API_URL = `${import.meta.env.VITE_API_URL}/api/companies`;
 
 const axiosInstance = axios.create({
   baseURL: API_URL
@@ -17,6 +17,20 @@ axiosInstance.interceptors.request.use(
     return config;
   },
   (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Handle 401 Unauthorized errors
+axiosInstance.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      localStorage.removeItem('isLoggedIn');
+      window.location.href = '/'; // Redirect to login
+    }
     return Promise.reject(error);
   }
 );

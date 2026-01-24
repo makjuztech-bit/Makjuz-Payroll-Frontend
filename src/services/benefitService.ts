@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'https://makjuz-payroll-backend.onrender.com/api/benefits';
+const API_URL = `${import.meta.env.VITE_API_URL}/api/benefits`;
 
 const axiosInstance = axios.create({
   baseURL: API_URL

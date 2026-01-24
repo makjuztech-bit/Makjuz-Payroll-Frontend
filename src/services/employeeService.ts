@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { Employee } from '../context/CompanyContext';
 
-const API_URL = 'https://makjuz-payroll-backend.onrender.com/api/employees';
+const API_URL = `${import.meta.env.VITE_API_URL}/api/employees`;
 
 const axiosInstance = axios.create({
   baseURL: API_URL
@@ -32,6 +32,12 @@ axiosInstance.interceptors.response.use(
     return response;
   },
   (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      localStorage.removeItem('isLoggedIn');
+      window.location.href = '/';
+    }
     return Promise.reject(error);
   }
 );
@@ -41,7 +47,7 @@ const transformSnakeToCamel = (data: any): any => {
   if (Array.isArray(data)) {
     return data.map(transformSnakeToCamel);
   }
-  
+
   if (data === null || typeof data !== 'object') {
     return data;
   }
@@ -49,15 +55,15 @@ const transformSnakeToCamel = (data: any): any => {
   const transformed: any = {};
   Object.entries(data).forEach(([key, value]) => {
     const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
-    
+
     // Recursively transform nested objects and arrays
     if (value !== null && typeof value === 'object') {
       transformed[camelKey] = transformSnakeToCamel(value);
     } else {
-    transformed[camelKey] = value;
+      transformed[camelKey] = value;
     }
   });
-  
+
   // Special case for MongoDB _id
   if (data._id) {
     transformed.id = data._id;
@@ -106,18 +112,18 @@ class EmployeeService {
   async getPayrunDetails(id: number, month: string, year: string): Promise<Employee> {
     try {
       console.log(`Fetching payrun details for employee ${id}, month: ${month}, year: ${year}`);
-      
+
       const response = await axiosInstance.get(`/${id}/payrun`, {
         params: { month, year }
       });
-      
+
       if (!response.data) {
         console.error('No payrun data received from server');
         throw new Error('No payrun data received');
       }
-      
+
       console.log('Payrun data received:', JSON.stringify(response.data, null, 2));
-      
+
       return response.data;
     } catch (error: any) {
       console.error('Error fetching payrun details:', error);

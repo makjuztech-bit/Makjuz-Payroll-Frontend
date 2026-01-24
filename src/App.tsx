@@ -19,34 +19,34 @@ const App: React.FC = () => {
   const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
 
   return (
-    <CompanyProvider>
-      <Router>
-        {!isLoggedIn ? (
-          <Routes>
-            <Route path="/register" element={<Register />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="*" element={<Navigate to="/login" replace />} />
-          </Routes>
-        ) : (
-          <AuthWrapper>
-          <MainLayout>
-            <Routes>
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              <Route path="/dashboard" element={<DashboardPage />} />
-              <Route path="/employees" element={<EmployeesPage />} />
-              <Route path="/pay-runs" element={<PayRunsPage />} />
-              <Route path="/documents" element={<DocumentsPage />} />
-              <Route path="/benefits" element={<BenefitsPage />} />
-              <Route path="/reports" element={<ReportsPage />} />
-              <Route path="/marketing" element={<MarketingPage />} />
-              <Route path="/company-settings" element={<CompanySettings />} />
-              <Route path="/support" element={<SupportPage />} />
-            </Routes>
-          </MainLayout>
-          </AuthWrapper>
-        )}
-      </Router>
-    </CompanyProvider>
+    <Router>
+      {!isLoggedIn ? (
+        <Routes>
+          <Route path="/register" element={<Register />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </Routes>
+      ) : (
+        <AuthWrapper>
+          <CompanyProvider>
+            <MainLayout>
+              <Routes>
+                <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/dashboard" element={<DashboardPage />} />
+                <Route path="/employees" element={<EmployeesPage />} />
+                <Route path="/pay-runs" element={<PayRunsPage />} />
+                <Route path="/documents" element={<DocumentsPage />} />
+                <Route path="/benefits" element={<BenefitsPage />} />
+                <Route path="/reports" element={<ReportsPage />} />
+                <Route path="/marketing" element={<MarketingPage />} />
+                <Route path="/company-settings" element={<CompanySettings />} />
+                <Route path="/support" element={<SupportPage />} />
+              </Routes>
+            </MainLayout>
+          </CompanyProvider>
+        </AuthWrapper>
+      )}
+    </Router>
   );
 };
 

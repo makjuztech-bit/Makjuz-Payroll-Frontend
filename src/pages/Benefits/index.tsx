@@ -24,7 +24,6 @@ const BenefitsPage: React.FC = () => {
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [editingBenefit, setEditingBenefit] = useState<Benefit | null>(null);
 
-  const [isModalVisible, setIsModalVisible] = useState(false);
   const [benefits, setBenefits] = useState<Benefit[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -40,14 +39,7 @@ const BenefitsPage: React.FC = () => {
   };
 
 
-  const [shouldOpenModal, setShouldOpenModal] = useState(false); // NEW
 
-  useEffect(() => {
-    if (editingBenefit === null && shouldOpenModal) {
-      setIsModalVisible(true);
-      setShouldOpenModal(false);
-    }
-  }, [editingBenefit, shouldOpenModal]);
 
 
   const fetchBenefits = async () => {

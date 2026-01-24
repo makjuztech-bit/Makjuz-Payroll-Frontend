@@ -4,7 +4,7 @@ import { FaUser, FaLock } from 'react-icons/fa';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
 
-const API_URL = 'https://makjuz-payroll-backend.onrender.com/api/auth';
+const API_URL = `${import.meta.env.VITE_API_URL}/api/auth`;
 
 const Login: React.FC = () => {
   const [username, setUsername] = useState('');
@@ -17,19 +17,19 @@ const Login: React.FC = () => {
     try {
       setLoading(true);
       setError('');
-      
+
       const response = await axios.post(`${API_URL}/login`, {
         username,
         password
       });
 
       const { token, user } = response.data;
-      
+
       // Store the token and user data
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
       localStorage.setItem('isLoggedIn', 'true');
-      
+
       // Reload the application
       window.location.href = '/';
     } catch (err: any) {
@@ -79,8 +79,8 @@ const Login: React.FC = () => {
           <a href="#" onClick={(e) => e.preventDefault()}>Forgot Password?</a>
         </div>
 
-        <button 
-          onClick={handleLogin} 
+        <button
+          onClick={handleLogin}
           disabled={loading}
           style={{ opacity: loading ? 0.7 : 1 }}
         >

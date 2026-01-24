@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { 
+import {
   Card, Table, Button, Typography, Space, Tag, message, Row, Col,
   Statistic, Modal, Alert, Select
 } from 'antd';
@@ -68,7 +68,7 @@ const PayRunsPage: React.FC = () => {
 
   const fetchBenefits = async () => {
     if (!selectedCompany?._id) return;
-    
+
     try {
       const companyBenefits = await benefitService.getBenefits(selectedCompany._id);
       setBenefits(companyBenefits || []);
@@ -80,35 +80,35 @@ const PayRunsPage: React.FC = () => {
 
   const fetchEmployeeDetails = async () => {
     if (!selectedCompany?._id) return;
-    
+
     setIsLoading(true);
     try {
       // First check if there's payrun data for this month/year
       const payrunSummary = await payrunService.getPayrunSummary(selectedCompany._id, selectedMonth, selectedYear);
-      
+
       // If no payrun data exists for this month/year, return empty array
       if (!payrunSummary || payrunSummary.totalEmployees === 0) {
         setEmployeeDetails([]);
         setIsLoading(false);
         return;
       }
-      
+
       // Fetch all employees for the company
       const employees = await employeeService.getAllEmployees(selectedCompany._id);
-      
+
       // Then get payrun details for each employee
       const details = await Promise.all(
         employees.map(async (emp) => {
           try {
             const payrunDetails = await employeeService.getPayrunDetails(emp.id, selectedMonth, selectedYear);
-            
+
             // Calculate benefits-adjusted values
             const originalTotalDeductions = payrunDetails.totalDeductions || 0;
             const originalFinalNetPay = payrunDetails.finalNetpay || 0;
-            
+
             const calculatedTotalDeductions = originalTotalDeductions + totalBenefitsAmount;
             const calculatedFinalNetPay = originalFinalNetPay - totalBenefitsAmount;
-            
+
             return {
               ...emp,
               ...payrunDetails,
@@ -141,11 +141,11 @@ const PayRunsPage: React.FC = () => {
 
   const handlePayEmployee = async (employeeId: number) => {
     setLoading(prev => ({ ...prev, [employeeId]: true }));
-    
+
     try {
       // In a real app, you would make an API call to process the payment
       await new Promise(resolve => setTimeout(resolve, 1500));
-      
+
       setPaymentStatus(prev => ({ ...prev, [employeeId]: 'paid' }));
       message.success('Payment processed successfully!');
     } catch (error) {
@@ -172,55 +172,55 @@ const PayRunsPage: React.FC = () => {
       message.error('Please select a company first');
       return;
     }
-    
+
     if (totalEmployees === 0) {
       message.error('No employee data available for the selected month and year');
       return;
     }
-    
+
     try {
       setDownloading(true);
       message.loading({ content: 'Generating paysheet...', key: 'download' });
-      
+
       console.log(`Downloading paysheet for ${selectedCompany.name}, ${selectedMonth} ${selectedYear}`);
-      
+
       const blob = await payrunService.downloadPaysheet(
         selectedCompany._id,
         selectedMonth,
         selectedYear
       );
-      
+
       // Validate that we have a proper blob
       if (!(blob instanceof Blob)) {
         throw new Error('Invalid response format');
       }
-      
+
       // Create a download link with explicit type
       const url = window.URL.createObjectURL(
         new Blob([blob], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
       );
-      
+
       // Create and use a download link
       const a = document.createElement('a');
       a.href = url;
       a.download = `${selectedCompany.name}_paysheet_${selectedMonth}_${selectedYear}.xlsx`;
       document.body.appendChild(a);
       a.click();
-      
+
       // Clean up
       setTimeout(() => {
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
       }, 100);
-      
+
       message.success({ content: 'Paysheet downloaded successfully', key: 'download' });
       console.log('Paysheet downloaded successfully');
     } catch (error) {
       console.error('Error downloading paysheet:', error);
-      message.error({ 
-        content: error instanceof Error 
-          ? `Failed to download paysheet: ${error.message}` 
-          : 'Failed to download paysheet', 
+      message.error({
+        content: error instanceof Error
+          ? `Failed to download paysheet: ${error.message}`
+          : 'Failed to download paysheet',
         key: 'download'
       });
     } finally {
@@ -259,19 +259,19 @@ const PayRunsPage: React.FC = () => {
       title: 'Base Salary',
       dataIndex: 'fixedStipend',
       key: 'fixedStipend',
-      render: (value: number) => `₹${value?.toFixed(2) || '0.00'}`,
+      render: (value: number | undefined) => `₹${value?.toFixed(2) || '0.00'}`,
     },
     {
       title: 'Total Earnings',
       dataIndex: 'totalEarning',
       key: 'totalEarning',
-      render: (value: number) => `₹${value?.toFixed(2) || '0.00'}`,
+      render: (value: number | undefined) => `₹${value?.toFixed(2) || '0.00'}`,
     },
     {
       title: 'Total Deductions',
       dataIndex: 'calculatedTotalDeductions',
       key: 'calculatedTotalDeductions',
-      render: (value: number, record: PayrunEmployee) => (
+      render: (value: number | undefined, _: PayrunEmployee) => (
         <div>
           <div>₹{value?.toFixed(2) || '0.00'}</div>
           {totalBenefitsAmount > 0 && (
@@ -286,7 +286,7 @@ const PayRunsPage: React.FC = () => {
       title: 'Net Pay',
       dataIndex: 'calculatedFinalNetPay',
       key: 'calculatedFinalNetPay',
-      render: (value: number, record: PayrunEmployee) => (
+      render: (value: number | undefined, _: PayrunEmployee) => (
         <div>
           <span style={{ color: '#52c41a', fontWeight: 'bold' }}>
             ₹{value?.toFixed(2) || '0.00'}
@@ -327,15 +327,15 @@ const PayRunsPage: React.FC = () => {
             Pay Now
           </Button>
           {paymentStatus[record.id] === 'paid' && (
-          <Button
-            type="link"
-            onClick={() => {
-              setSelectedEmployee(record);
-              setShowPayslip(true);
-            }}
-          >
-            View Payslip
-          </Button>
+            <Button
+              type="link"
+              onClick={() => {
+                setSelectedEmployee(record);
+                setShowPayslip(true);
+              }}
+            >
+              View Payslip
+            </Button>
           )}
         </Space>
       ),
@@ -468,7 +468,7 @@ const PayRunsPage: React.FC = () => {
                       >
                         Download Paysheet
                       </Button>
-                      <Button 
+                      <Button
                         type="primary"
                         onClick={() => setShowConfirmModal(true)}
                         disabled={pendingEmployees === 0}
@@ -490,8 +490,8 @@ const PayRunsPage: React.FC = () => {
               <p style={{ color: '#8c8c8c' }}>
                 Import an Excel file with employee payrun data for {selectedMonth} {selectedYear}
               </p>
-              <Button 
-                type="primary" 
+              <Button
+                type="primary"
                 icon={<UploadOutlined />}
                 onClick={() => setShowUploadModal(true)}
                 style={{ marginTop: 16 }}
@@ -500,15 +500,15 @@ const PayRunsPage: React.FC = () => {
               </Button>
             </Card>
           ) : (
-          <Card variant="outlined" style={{ borderRadius: '8px' }}>
-            <Table
-              columns={columns}
-              dataSource={employeeDetails}
-              rowKey={(record) => `${record.empIdNo}-${record.id}`}
-              pagination={false}
-              loading={isLoading}
-            />
-          </Card>
+            <Card variant="outlined" style={{ borderRadius: '8px' }}>
+              <Table
+                columns={columns}
+                dataSource={employeeDetails}
+                rowKey={(record) => `${record.empIdNo}-${record.id}`}
+                pagination={false}
+                loading={isLoading}
+              />
+            </Card>
           )}
 
           {/* Confirm Modal */}

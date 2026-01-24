@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { 
+import {
   Card, Row, Col, Typography, Statistic, Progress, List, Avatar, Spin,
-  Select, DatePicker, Space, Table, Tag, Tooltip, Divider
+  Select, Space, Table, Tag, Tooltip, Divider
 } from 'antd';
 import {
   TeamOutlined,
@@ -21,12 +21,9 @@ import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
-const { RangePicker } = DatePicker;
 
 const DashboardPage: React.FC = () => {
   const { companies, selectedCompany, loading, error } = useCompany();
-  const [employeeCount, setEmployeeCount] = useState<number>(0);
-  const [countLoading, setCountLoading] = useState<boolean>(false);
   const [selectedMonth, setSelectedMonth] = useState<string>(dayjs().format('MMMM'));
   const [selectedYear, setSelectedYear] = useState<string>(dayjs().year().toString());
   const [payrunSummary, setPayrunSummary] = useState<any>(null);
@@ -34,30 +31,11 @@ const DashboardPage: React.FC = () => {
   const [companiesStats, setCompaniesStats] = useState<any[]>([]);
   const [statsLoading, setStatsLoading] = useState<boolean>(false);
 
-  // Fetch employee count when selected company changes
-  useEffect(() => {
-    const fetchEmployeeCount = async () => {
-      if (!selectedCompany) return;
-      
-      setCountLoading(true);
-      try {
-        const count = await employeeService.getEmployeeCount(selectedCompany._id);
-        setEmployeeCount(count);
-      } catch (error) {
-        console.error('Error fetching employee count:', error);
-      } finally {
-        setCountLoading(false);
-      }
-    };
-
-    fetchEmployeeCount();
-  }, [selectedCompany]);
-
   // Fetch payrun summary when month, year, or company changes
   useEffect(() => {
     const fetchPayrunSummary = async () => {
       if (!selectedCompany) return;
-      
+
       setSummaryLoading(true);
       try {
         const summary = await payrunService.getPayrunSummary(
@@ -81,7 +59,7 @@ const DashboardPage: React.FC = () => {
   useEffect(() => {
     const calculateCompanyStats = async () => {
       if (!companies || companies.length === 0) return;
-      
+
       setStatsLoading(true);
       try {
         // Create stats for all companies
@@ -89,14 +67,14 @@ const DashboardPage: React.FC = () => {
           companies.map(async (company) => {
             try {
               const employeeCount = await employeeService.getEmployeeCount(company._id);
-              
+
               // Get unique departments
               const departmentsSet = new Set(
                 (company.employees || [])
                   .map(emp => emp?.department)
                   .filter(Boolean)
               );
-              
+
               return {
                 id: company._id,
                 name: company.name,
@@ -115,7 +93,7 @@ const DashboardPage: React.FC = () => {
             }
           })
         );
-        
+
         // Sort by employee count in descending order
         stats.sort((a, b) => b.employeeCount - a.employeeCount);
         setCompaniesStats(stats);
@@ -129,7 +107,7 @@ const DashboardPage: React.FC = () => {
     calculateCompanyStats();
   }, [companies]);
 
-  if (loading || countLoading) {
+  if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: '50px' }}>
         <Spin size="large" />
@@ -145,17 +123,19 @@ const DashboardPage: React.FC = () => {
     );
   }
 
-  // Calculate statistics
-  const totalCompanies = companies?.length || 0;
-  
-  const totalDepartments = companies?.length ? [...new Set(
-    companies.flatMap(company => 
-      (company.employees || []).map(emp => emp?.department)
-    ).filter(Boolean)
-  )].length : 0;
+  // Calculate statistics for the Selected Company
+  const currentCompanyEmployees = selectedCompany?.employees || [];
+  const currentEmployeeCount = currentCompanyEmployees.length;
 
-  // Get department distribution for the selected company
-  const departmentStats = selectedCompany?.employees?.reduce((acc, emp) => {
+  const currentDepartments = new Set(
+    currentCompanyEmployees.map(emp => emp?.department).filter(Boolean)
+  ).size;
+
+  const currentDesignations = new Set(
+    currentCompanyEmployees.map(emp => emp?.designation).filter(Boolean)
+  ).size;
+
+  const departmentStats = currentCompanyEmployees.reduce((acc, emp) => {
     if (emp?.department) {
       acc[emp.department] = (acc[emp.department] || 0) + 1;
     }
@@ -170,8 +150,9 @@ const DashboardPage: React.FC = () => {
       key: 'name',
       render: (text: string, record: any) => (
         <Space>
-          <Avatar 
-            style={{ 
+          <Avatar
+            shape="square" // Make it look a bit more distinct
+            style={{
               backgroundColor: record.id === selectedCompany?._id ? '#1890ff' : '#f0f0f0',
               color: record.id === selectedCompany?._id ? 'white' : '#666'
             }}
@@ -187,7 +168,7 @@ const DashboardPage: React.FC = () => {
       dataIndex: 'employeeCount',
       key: 'employeeCount',
       render: (count: number) => (
-        <Tag color={count > 0 ? '#1890ff' : '#d9d9d9'} icon={<TeamOutlined />}>{count}</Tag>
+        <Tag color="blue" icon={<TeamOutlined />}>{count}</Tag>
       )
     },
     {
@@ -195,19 +176,24 @@ const DashboardPage: React.FC = () => {
       dataIndex: 'departmentCount',
       key: 'departmentCount',
       render: (count: number) => (
-        <Tag color={count > 0 ? '#52c41a' : '#d9d9d9'} icon={<ApartmentOutlined />}>{count}</Tag>
+        <Tag color="green" icon={<ApartmentOutlined />}>{count}</Tag>
       )
     },
     {
       title: 'Distribution',
       key: 'distribution',
-      render: (_: any, record: any) => (
-        <Progress 
-          percent={Math.round((record.employeeCount / (companiesStats.reduce((total, company) => total + company.employeeCount, 0) || 1)) * 100)}
-          status="active"
-          size="small"
-        />
-      )
+      render: (_: any, record: any) => {
+        // Calculate percentage relative to the largest company for visualization context
+        const maxEmployees = Math.max(...companiesStats.map(c => c.employeeCount), 1);
+        return (
+          <Progress
+            percent={Math.round((record.employeeCount / maxEmployees) * 100)}
+            steps={5}
+            size="small"
+            strokeColor="#1890ff"
+          />
+        )
+      }
     }
   ];
 
@@ -216,10 +202,13 @@ const DashboardPage: React.FC = () => {
       <Row justify="space-between" align="middle" style={{ marginBottom: 24 }}>
         <Col>
           <Title level={3}>Dashboard Overview</Title>
+          <Text type="secondary">
+            Snapshot for {selectedCompany?.name || 'Selected Company'}
+          </Text>
         </Col>
         <Col>
           <Space>
-            <Select 
+            <Select
               style={{ width: 120 }}
               value={selectedMonth}
               onChange={setSelectedMonth}
@@ -233,7 +222,7 @@ const DashboardPage: React.FC = () => {
                 <Option key={month} value={month}>{month}</Option>
               ))}
             </Select>
-            
+
             <Select
               style={{ width: 100 }}
               value={selectedYear}
@@ -248,51 +237,52 @@ const DashboardPage: React.FC = () => {
           </Space>
         </Col>
       </Row>
-      
-      {/* Main Statistics */}
+
+      {/* Main Statistics Cards - All Scoped to Selected Company */}
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={12} lg={6}>
-          <Card variant="outlined" style={{ height: '100%', background: '#1890ff', color: 'white' }}>
+          <Card variant="outlined" style={{ height: '100%' }}>
             <Statistic
-              title={<span style={{ color: 'white' }}>Total Companies</span>}
-              value={totalCompanies}
-              prefix={<BankOutlined />}
-              valueStyle={{ color: 'white' }}
+              title="Total Employees"
+              value={currentEmployeeCount}
+              prefix={<TeamOutlined style={{ color: '#1890ff' }} />}
+              valueStyle={{ color: '#1890ff' }}
             />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card variant="outlined" style={{ height: '100%', background: '#52c41a', color: 'white' }}>
+          <Card variant="outlined" style={{ height: '100%' }}>
             <Statistic
-              title={<span style={{ color: 'white' }}>Total Employees</span>}
-              value={employeeCount}
-              prefix={<TeamOutlined />}
-              valueStyle={{ color: 'white' }}
+              title="Departments"
+              value={currentDepartments}
+              prefix={<ApartmentOutlined style={{ color: '#52c41a' }} />}
+              valueStyle={{ color: '#52c41a' }}
             />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card variant="outlined" style={{ height: '100%', background: '#722ed1', color: 'white' }}>
+          {/* Replaced 'Total Companies' with 'Designations' to keep context local */}
+          <Card variant="outlined" style={{ height: '100%' }}>
             <Statistic
-              title={<span style={{ color: 'white' }}>Departments</span>}
-              value={totalDepartments}
-              prefix={<ApartmentOutlined />}
-              valueStyle={{ color: 'white' }}
+              title="Designations"
+              value={currentDesignations}
+              prefix={<UserOutlined style={{ color: '#722ed1' }} />}
+              valueStyle={{ color: '#722ed1' }}
             />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card variant="outlined" style={{ height: '100%', background: '#fa8c16', color: 'white' }}>
+          <Card variant="outlined" style={{ height: '100%' }}>
             <Statistic
-              title={<span style={{ color: 'white' }}>Payroll Amount</span>}
-              value={payrunSummary?.totalSalary || 0}
-              prefix={<LineChartOutlined />}
+              title="Monthly Cost"
+              value={payrunSummary?.totalGrandTotal || 0}
+              prefix={<LineChartOutlined style={{ color: '#fa8c16' }} />}
               suffix="₹"
               precision={2}
-              valueStyle={{ color: 'white' }}
+              valueStyle={{ color: '#fa8c16' }}
             />
-            <Text style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: 12 }}>
-              {`${selectedMonth} ${selectedYear}`}
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {selectedMonth} {selectedYear}
             </Text>
           </Card>
         </Col>
@@ -301,7 +291,7 @@ const DashboardPage: React.FC = () => {
       {/* Payrun and Company Overview */}
       <Row gutter={[16, 16]} style={{ marginTop: 24 }}>
         <Col xs={24} lg={12}>
-          <Card 
+          <Card
             title={
               <Space>
                 <BarChartOutlined />
@@ -318,14 +308,14 @@ const DashboardPage: React.FC = () => {
             {payrunSummary && payrunSummary.totalEmployees > 0 ? (
               <Row gutter={[16, 16]}>
                 <Col span={12}>
-                  <Statistic 
+                  <Statistic
                     title="Processed Employees"
                     value={payrunSummary.totalEmployees}
                     prefix={<UserOutlined />}
                   />
                 </Col>
                 <Col span={12}>
-                  <Statistic 
+                  <Statistic
                     title="Total Salary"
                     value={payrunSummary.totalSalary}
                     prefix="₹"
@@ -334,7 +324,7 @@ const DashboardPage: React.FC = () => {
                 </Col>
                 <Divider style={{ margin: '12px 0' }} />
                 <Col span={12}>
-                  <Statistic 
+                  <Statistic
                     title="Billable Total"
                     value={payrunSummary.totalBillable}
                     prefix="₹"
@@ -342,7 +332,7 @@ const DashboardPage: React.FC = () => {
                   />
                 </Col>
                 <Col span={12}>
-                  <Statistic 
+                  <Statistic
                     title="GST Amount"
                     value={payrunSummary.totalGST}
                     prefix="₹"
@@ -350,7 +340,7 @@ const DashboardPage: React.FC = () => {
                   />
                 </Col>
                 <Col span={24}>
-                  <Statistic 
+                  <Statistic
                     title="Grand Total"
                     value={payrunSummary.totalGrandTotal}
                     prefix="₹"
@@ -367,13 +357,13 @@ const DashboardPage: React.FC = () => {
                 <div style={{ marginTop: 8 }}>
                   <Text type="secondary">Import payrun data to view statistics</Text>
                 </div>
-                  </div>
-              )}
+              </div>
+            )}
           </Card>
         </Col>
-        
+
         <Col xs={24} lg={12}>
-          <Card 
+          <Card
             title={
               <Space>
                 <RiseOutlined />
@@ -393,7 +383,7 @@ const DashboardPage: React.FC = () => {
                       title={department}
                       description={`${count} employee${count > 1 ? 's' : ''}`}
                     />
-                    <Progress 
+                    <Progress
                       percent={Math.round((count / (selectedCompany.employees?.length || 1)) * 100)}
                       size="small"
                     />
@@ -412,7 +402,7 @@ const DashboardPage: React.FC = () => {
       {/* Company Comparison Table */}
       <Row style={{ marginTop: 24 }}>
         <Col span={24}>
-          <Card 
+          <Card
             title={
               <Space>
                 <BankOutlined />

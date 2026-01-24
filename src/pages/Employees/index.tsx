@@ -1,20 +1,35 @@
 import React, { useState, useEffect } from 'react';
 import { Typography, Select, Empty, Space, Table, Button, Tag, Input, message, Tooltip } from 'antd';
-import { SearchOutlined, EyeOutlined, DeleteOutlined } from '@ant-design/icons';
+import { SearchOutlined, EyeOutlined, DeleteOutlined, SettingOutlined } from '@ant-design/icons';
 import { useCompany, Employee } from '../../context/CompanyContext';
 import AddEmployeeModal from '../../components/Employee/AddEmployeeModal';
 import ImportExcel from '../../components/Employee/ImportExcel';
 import PayslipModal from '../../components/Payment/PayslipModal';
 import employeeService from '../../services/employeeService';
 import EmployeeDetailModal from '../../components/Employee/EmployeeDetailModal';
+import FormCustomizationModal, { FieldConfig, DEFAULT_FIELD_CONFIG } from '../../components/Employee/FormCustomizationModal';
 
 const { Title } = Typography;
 
 const EmployeesPage: React.FC = () => {
+  const [messageApi, contextHolder] = message.useMessage();
   const { selectedCompany } = useCompany();
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [payslipEmp, setPayslipEmp] = useState<Employee | null>(null);
+
+  // Customization State
+  const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
+  const [formConfig, setFormConfig] = useState<FieldConfig[]>(() => {
+    const saved = localStorage.getItem('employeeFormConfig');
+    return saved ? JSON.parse(saved) : DEFAULT_FIELD_CONFIG;
+  });
+
+  const handleSaveConfig = (newConfig: FieldConfig[]) => {
+    setFormConfig(newConfig);
+    localStorage.setItem('employeeFormConfig', JSON.stringify(newConfig));
+    messageApi.success('Form configuration saved successfully');
+  };
   const [filteredDepartment, setFilteredDepartment] = useState<string | null>(null);
   const [filteredCategory, setFilteredCategory] = useState<string | null>(null);
   const [filteredSalaryType, setFilteredSalaryType] = useState<string | null>(null);
@@ -37,7 +52,7 @@ const EmployeesPage: React.FC = () => {
         setEmployees(data);
       } catch (error) {
         console.error('Error fetching employees:', error);
-        message.error('Failed to fetch employees');
+        messageApi.error('Failed to fetch employees');
       } finally {
         setLoading(false);
       }
@@ -45,18 +60,15 @@ const EmployeesPage: React.FC = () => {
 
     fetchEmployees();
   }, [selectedCompany]);
-  useEffect(() => {
-    console.log("Selected Employee: ", selectedEmployee);
-  }, [selectedEmployee]);
+
 
 
   // open/close for payslip modal
-  const openPayslip = (emp: Employee) => setPayslipEmp(emp);
   const closePayslip = () => setPayslipEmp(null);
 
   const handleAdd = async (values: any) => {
     if (!selectedCompany) {
-      message.warning('Please select a company first');
+      messageApi.warning('Please select a company first');
       return;
     }
 
@@ -67,10 +79,10 @@ const EmployeesPage: React.FC = () => {
         status: values.status || 'Active',
       });
       setEmployees(prev => [...prev, newEmployee]);
-      message.success('Employee added successfully');
+      messageApi.success('Employee added successfully');
     } catch (error: any) {
       console.error('Error adding employee:', error);
-      message.error(error.response?.data?.message || 'Failed to add employee');
+      messageApi.error(error.response?.data?.message || 'Failed to add employee');
     }
   };
 
@@ -122,7 +134,7 @@ const EmployeesPage: React.FC = () => {
       dataIndex: 'id',
       key: 'id',
       width: 80,
-      render: (_: any, __: any, index: number) => index + 1
+      render: (_value: any, _record: any, index: number) => index + 1
     },
     {
       title: 'EMP ID NO',
@@ -361,10 +373,10 @@ const EmployeesPage: React.FC = () => {
                 try {
                   await employeeService.deleteEmployee(record.id);
                   setEmployees(prev => prev.filter(emp => emp.id !== record.id));
-                  message.success('Employee deleted successfully');
+                  messageApi.success('Employee deleted successfully');
                 } catch (error) {
                   console.error('Error deleting employee:', error);
-                  message.error('Failed to delete employee');
+                  messageApi.error('Failed to delete employee');
                 }
               }}
             >
@@ -378,6 +390,7 @@ const EmployeesPage: React.FC = () => {
 
   return (
     <div style={{ padding: 24 }}>
+      {contextHolder}
       {/* Top bar */}
       <div
         style={{
@@ -393,10 +406,27 @@ const EmployeesPage: React.FC = () => {
             : 'Employees'}
         </Title>
         <Space size="middle">
-          <AddEmployeeModal onAdd={handleAdd} />
+          <Button
+            icon={<SettingOutlined />}
+            onClick={() => setIsConfigModalOpen(true)}
+          >
+            Customize Form
+          </Button>
+          <AddEmployeeModal
+            onAdd={handleAdd}
+            companyName={selectedCompany?.name}
+            fieldConfig={formConfig}
+          />
           <ImportExcel />
         </Space>
       </div>
+
+      <FormCustomizationModal
+        visible={isConfigModalOpen}
+        onCancel={() => setIsConfigModalOpen(false)}
+        initialConfig={formConfig}
+        onSave={handleSaveConfig}
+      />
 
       {selectedCompany ? (
         <>

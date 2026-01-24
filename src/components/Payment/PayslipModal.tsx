@@ -2,7 +2,6 @@ import React, { useRef, useState, useEffect } from 'react';
 import { Modal, Button, Typography, Divider, Row, Col, Card, Alert } from 'antd';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import { Employee } from '../../context/CompanyContext';
 import benefitService, { Benefit } from '../../services/benefitService';
 
 const { Title, Text } = Typography;
@@ -33,10 +32,9 @@ const PayslipModal: React.FC<PayslipModalProps> = ({
   companyId
 }) => {
   const [benefits, setBenefits] = useState<Benefit[]>([]);
-  const [loading, setLoading] = useState(false);
-  
+
   console.log('PayslipModal received employee data:', employee);
-  
+
   const ref = useRef<HTMLDivElement>(null);
   const currentDate = new Date();
   const payPeriod = `${currentDate.toLocaleString('default', { month: 'long' })} ${currentDate.getFullYear()}`;
@@ -50,15 +48,12 @@ const PayslipModal: React.FC<PayslipModalProps> = ({
 
   const fetchBenefits = async () => {
     try {
-      setLoading(true);
       const companyBenefits = await benefitService.getBenefits(companyId);
       // Only include active benefits
       setBenefits(companyBenefits.filter(benefit => benefit.active));
     } catch (error) {
       console.error('Error fetching benefits:', error);
       setBenefits([]);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -105,9 +100,9 @@ const PayslipModal: React.FC<PayslipModalProps> = ({
       title={
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center' }}>
-            <Text style={{ 
-              fontSize: 20, 
-              fontWeight: 'bold', 
+            <Text style={{
+              fontSize: 20,
+              fontWeight: 'bold',
               color: '#1890ff',
               fontFamily: 'Arial, sans-serif',
               letterSpacing: '1px',
@@ -140,9 +135,9 @@ const PayslipModal: React.FC<PayslipModalProps> = ({
           <Title level={5} style={{ textAlign: 'center', marginTop: 0 }}>
             Payslip for {payPeriod}
           </Title>
-          
+
           <Divider />
-          
+
           {/* Employee Information */}
           <div style={{ background: '#f5f5f5', padding: 16, borderRadius: 8, marginBottom: 16 }}>
             <Row gutter={[16, 8]}>
@@ -166,7 +161,7 @@ const PayslipModal: React.FC<PayslipModalProps> = ({
               </Col>
             </Row>
           </div>
-          
+
           {/* Salary Details */}
           <Row gutter={16}>
             <Col span={12}>
@@ -208,7 +203,7 @@ const PayslipModal: React.FC<PayslipModalProps> = ({
                 </Row>
               </Card>
             </Col>
-            
+
             <Col span={12}>
               <Card title="Deductions" variant="outlined" style={{ background: '#fff2e8' }}>
                 <Row justify="space-between">
@@ -224,12 +219,12 @@ const PayslipModal: React.FC<PayslipModalProps> = ({
                   <Col>₹{formatCurrency(employee.canteen)}</Col>
                 </Row>
                 {(employee.lop > 0) && (
-                <Row justify="space-between" style={{ marginTop: 8 }}>
-                  <Col>LOP Deduction</Col>
-                  <Col>₹{formatCurrency(employee.lop)}</Col>
-                </Row>
+                  <Row justify="space-between" style={{ marginTop: 8 }}>
+                    <Col>LOP Deduction</Col>
+                    <Col>₹{formatCurrency(employee.lop)}</Col>
+                  </Row>
                 )}
-                
+
                 {/* Benefits Section */}
                 {benefits.length > 0 && (
                   <>
@@ -243,7 +238,7 @@ const PayslipModal: React.FC<PayslipModalProps> = ({
                     ))}
                   </>
                 )}
-                
+
                 <Divider style={{ margin: '12px 0' }} />
                 <Row justify="space-between">
                   <Col><Text strong>Total Deductions</Text></Col>
@@ -252,13 +247,13 @@ const PayslipModal: React.FC<PayslipModalProps> = ({
               </Card>
             </Col>
           </Row>
-          
+
           {/* Net Pay */}
-          <div style={{ 
-            marginTop: 24, 
-            textAlign: 'center', 
-            background: '#f6ffed', 
-            padding: 16, 
+          <div style={{
+            marginTop: 24,
+            textAlign: 'center',
+            background: '#f6ffed',
+            padding: 16,
             borderRadius: 8,
             border: '1px solid #b7eb8f'
           }}>
@@ -267,7 +262,7 @@ const PayslipModal: React.FC<PayslipModalProps> = ({
               ₹{formatCurrency(adjustedFinalNetPay)}
             </Text>
           </div>
-          
+
           {/* Attendance Summary */}
           <div style={{ marginTop: 24 }}>
             <Title level={5}>Attendance Summary</Title>
@@ -306,7 +301,7 @@ const PayslipModal: React.FC<PayslipModalProps> = ({
               </Col>
             </Row>
           </div>
-          
+
           {/* Additional Details */}
           <div style={{ marginTop: 24 }}>
             <Title level={5}>Billing Summary</Title>
@@ -337,14 +332,14 @@ const PayslipModal: React.FC<PayslipModalProps> = ({
               </Col>
             </Row>
           </div>
-          
+
           {employee.remarks && (
             <div style={{ marginTop: 24 }}>
               <Title level={5}>Remarks</Title>
               <Alert message={employee.remarks} type="info" />
             </div>
           )}
-          
+
           <div style={{ marginTop: 24 }}>
             <Title level={5}>Payment Details</Title>
             <Card variant="outlined">
@@ -370,9 +365,9 @@ const PayslipModal: React.FC<PayslipModalProps> = ({
               </Row>
             </Card>
           </div>
-          
+
           <Divider />
-          
+
           <div style={{ textAlign: 'center', fontSize: 12, color: '#888' }}>
             <p>This is a computer-generated payslip and does not require a signature.</p>
             <p>{companyName} - {new Date().getFullYear()}</p>

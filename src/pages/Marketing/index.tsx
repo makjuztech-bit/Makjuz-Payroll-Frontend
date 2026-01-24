@@ -14,7 +14,6 @@ import {
   Row,
   Col
 } from 'antd';
-import type { DatePickerProps } from 'antd';
 import { createCampaign, getAllCampaigns, Campaign } from '../../services/campaignService';
 
 const { Title } = Typography;
@@ -109,13 +108,13 @@ const MarketingPage: React.FC = () => {
       title: 'Salary',
       dataIndex: 'salary',
       key: 'salary',
-      render: (salary: number) => `$${salary.toLocaleString()}`,
+      render: (salary: number | undefined) => salary ? `$${salary.toLocaleString()}` : '-',
     },
     {
       title: 'Service Charge',
       dataIndex: 'serviceCharge',
       key: 'serviceCharge',
-      render: (charge: number) => `$${charge.toLocaleString()}`,
+      render: (charge: number | undefined) => charge ? `$${charge.toLocaleString()}` : '-',
     },
   ];
 

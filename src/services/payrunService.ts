@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'https://makjuz-payroll-backend.onrender.com/api/payruns';
+const API_URL = `${import.meta.env.VITE_API_URL}/api/payruns`;
 
 const axiosInstance = axios.create({
   baseURL: API_URL
@@ -26,7 +26,7 @@ axiosInstance.interceptors.response.use(
     // Skip transformation for binary data like blobs
     const contentType = response.headers['content-type'];
     if (contentType && (
-      contentType.includes('application/octet-stream') || 
+      contentType.includes('application/octet-stream') ||
       contentType.includes('application/vnd.openxmlformats') ||
       contentType.includes('application/vnd.ms-excel') ||
       contentType.includes('blob') ||
@@ -43,6 +43,12 @@ axiosInstance.interceptors.response.use(
     return response;
   },
   (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      localStorage.removeItem('isLoggedIn');
+      window.location.href = '/';
+    }
     return Promise.reject(error);
   }
 );
@@ -52,7 +58,7 @@ const transformSnakeToCamel = (data: any): any => {
   if (Array.isArray(data)) {
     return data.map(transformSnakeToCamel);
   }
-  
+
   if (data === null || typeof data !== 'object') {
     return data;
   }
@@ -62,7 +68,7 @@ const transformSnakeToCamel = (data: any): any => {
     const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
     transformed[camelKey] = value;
   });
-  
+
   // Special case for MongoDB _id
   if (data._id) {
     transformed.id = data._id;
@@ -89,19 +95,23 @@ interface PayrunSummary {
 
 class PayrunService {
   // Upload payrun Excel file
-  async uploadPayrunExcel(file: File, month: string, year: string, companyId: string): Promise<PayrunUploadResponse> {
+  async uploadPayrunExcel(file: File, month: string, year: string, companyId: string, columnMapping?: Record<string, string>): Promise<PayrunUploadResponse> {
     const formData = new FormData();
     formData.append('payrunFile', file);
     formData.append('month', month);
     formData.append('year', year);
     formData.append('companyId', companyId);
-    
+
+    if (columnMapping) {
+      formData.append('columnMapping', JSON.stringify(columnMapping));
+    }
+
     const response = await axiosInstance.post('/upload', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }
     });
-    
+
     return response.data;
   }
 
@@ -110,7 +120,7 @@ class PayrunService {
     const response = await axiosInstance.get('/summary', {
       params: { companyId, month, year }
     });
-    
+
     return response.data;
   }
 
@@ -119,7 +129,7 @@ class PayrunService {
     const response = await axiosInstance.get('/template', {
       responseType: 'blob'
     });
-    
+
     return response.data;
   }
 
@@ -130,7 +140,7 @@ class PayrunService {
         params: { companyId, month, year },
         responseType: 'blob'
       });
-      
+
       // Check if the response is an error message in JSON format
       const contentType = response.headers['content-type'];
       if (contentType && contentType.includes('application/json')) {
@@ -139,25 +149,25 @@ class PayrunService {
         const error = JSON.parse(text);
         throw new Error(error.message || error.details || 'Failed to download paysheet');
       }
-      
+
       // Validate that we have a proper blob
       if (!(response.data instanceof Blob)) {
         console.error('Response is not a Blob:', response.data);
         throw new Error('Invalid response format from server');
       }
-      
+
       // Make sure it's an Excel blob
-      if (!response.data.type.includes('spreadsheetml.sheet') && 
-          !response.data.type.includes('application/octet-stream') &&
-          !response.data.type.includes('application/vnd.ms-excel')) {
+      if (!response.data.type.includes('spreadsheetml.sheet') &&
+        !response.data.type.includes('application/octet-stream') &&
+        !response.data.type.includes('application/vnd.ms-excel')) {
         console.error('Invalid file type:', response.data.type);
         throw new Error('Invalid file type received from server');
       }
-      
+
       return response.data;
     } catch (error: any) {
       console.error('Error downloading paysheet:', error);
-      
+
       // Handle axios errors
       if (error.response) {
         // Server responded with an error status
