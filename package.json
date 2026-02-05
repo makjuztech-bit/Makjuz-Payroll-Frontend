@@ -11,8 +11,10 @@
   },
   "dependencies": {
     "@ant-design/icons": "^6.1.0",
+    "@types/crypto-js": "^4.2.2",
     "antd": "^5.26.6",
     "axios": "^1.9.0",
+    "crypto-js": "^4.2.0",
     "html2canvas": "^1.4.1",
     "jspdf": "^3.0.1",
     "react": "^19.1.0",
