@@ -1,7 +1,7 @@
 
 import axios from 'axios';
 
-const API_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/offer-letters`;
+const API_URL = `${import.meta.env.VITE_API_URL || ''}/api/offer-letters`;
 
 export interface Candidate {
     _id?: string;

@@ -56,7 +56,7 @@ const ChatInterface: React.FC = () => {
             // Wait, looking at index.js output: "app.use('/api/ai', aiRoutes);" -> Public.
             // It's safer if I update index.js to use auth, but let's stick to current plan so it works immediately.
 
-            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+            const API_URL = import.meta.env.VITE_API_URL || '';
             const response = await axios.post(`${API_URL}/api/ai/chat`, {
                 message: userMsg.message,
                 history: history
