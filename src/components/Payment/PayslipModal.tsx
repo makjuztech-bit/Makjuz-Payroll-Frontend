@@ -48,7 +48,7 @@ const PayslipModal: React.FC<PayslipModalProps> = ({
     try {
       const companyBenefits = await benefitService.getBenefits(companyId);
       // Only include active benefits
-      setBenefits(companyBenefits.filter(benefit => benefit.active));
+      setBenefits(companyBenefits.filter((benefit: Benefit) => benefit.active));
     } catch (error) {
       console.error('Error fetching benefits:', error);
       setBenefits([]);
