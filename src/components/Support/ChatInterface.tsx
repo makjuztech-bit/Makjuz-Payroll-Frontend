@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Card, Input, Button, List, Avatar, Typography, Spin, Space } from 'antd';
 import { SendOutlined, RobotOutlined, UserOutlined, LoadingOutlined } from '@ant-design/icons';
 import ReactMarkdown from 'react-markdown';
-import axios from 'axios';
+import api from '../../services/api';
 
 const { Text } = Typography;
 
@@ -56,8 +56,7 @@ const ChatInterface: React.FC = () => {
             // Wait, looking at index.js output: "app.use('/api/ai', aiRoutes);" -> Public.
             // It's safer if I update index.js to use auth, but let's stick to current plan so it works immediately.
 
-            const API_URL = import.meta.env.VITE_API_URL || '';
-            const response = await axios.post(`${API_URL}/api/ai/chat`, {
+            const response = await api.post('/ai/chat', {
                 message: userMsg.message,
                 history: history
             });
