@@ -15,7 +15,7 @@ import OfferLetterPage from './pages/OfferLetter';
 import { CompanyProvider } from './context/CompanyContext';
 import AuthWrapper from './components/Login/authWrapper';
 import Register from './components/Login/Register';
-import Login from './components/Login/login';
+import Login from './components/Login/Login';
 
 const App: React.FC = () => {
   const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
