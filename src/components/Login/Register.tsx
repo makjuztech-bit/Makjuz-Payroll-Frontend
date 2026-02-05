@@ -33,8 +33,10 @@ const Register: React.FC = () => {
       const response = await authService.register(username, password, email);
 
       if (response.token) {
-        // Registration successful, navigate to login
-        navigate('/login');
+        // Registration successful, set local storage and navigate to dashboard
+        localStorage.setItem('isLoggedIn', 'true');
+        navigate('/dashboard');
+        window.location.reload(); // Refresh to update AuthWrapper state
       }
     } catch (err: any) {
       setError(err.response?.data?.message || 'Registration failed. Please try again.');
