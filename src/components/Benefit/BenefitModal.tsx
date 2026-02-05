@@ -1,35 +1,63 @@
-import React, { useEffect } from 'react';
-import { Modal, Form, Input, Select, InputNumber, Switch, Button } from 'antd';
+import React, { useEffect, useState } from 'react';
+import { Modal, Form, Input, Select, InputNumber, Switch, Button, Popconfirm } from 'antd';
 import { Benefit } from '../../services/benefitService';
+import employeeService from '../../services/employeeService';
+import { Employee } from '../../context/CompanyContext';
 
 interface BenefitModalProps {
   visible: boolean;
   onClose: () => void;
   onSubmit: (values: Omit<Benefit, '_id' | 'createdAt'>) => void;
+  onDelete?: (id: string) => void;
   initialValues?: Partial<Benefit>;
   title?: string;
+  companyId?: string;
 }
 
 const BenefitModal: React.FC<BenefitModalProps> = ({
   visible,
   onClose,
   onSubmit,
+  onDelete,
   initialValues,
-  title = 'Add Benefit'
+  title = 'Add Benefit',
+  companyId
 }) => {
   const [form] = Form.useForm();
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [loadingEmployees, setLoadingEmployees] = useState(false);
 
+  useEffect(() => {
+    if (visible && companyId) {
+      fetchEmployees();
+    }
+  }, [visible, companyId]);
 
+  const fetchEmployees = async () => {
+    if (!companyId) return;
+    setLoadingEmployees(true);
+    try {
+      const data = await employeeService.getAllEmployees(companyId);
+      setEmployees(data);
+    } catch (error) {
+      console.error('Error fetching employees:', error);
+    } finally {
+      setLoadingEmployees(false);
+    }
+  };
 
   useEffect(() => {
     if (initialValues) {
-      form.setFieldsValue(initialValues);
+      // Handle employee field which might be an object or string
+      const values = { ...initialValues };
+      if (values.employee && typeof values.employee === 'object') {
+        values.employee = (values.employee as any)._id || (values.employee as any).id;
+      }
+      form.setFieldsValue(values);
     } else {
       form.resetFields();
     }
   }, [initialValues, form]);
-
-
 
   const handleSubmit = () => {
     form.validateFields().then(values => {
@@ -39,26 +67,46 @@ const BenefitModal: React.FC<BenefitModalProps> = ({
     });
   };
 
+  const handleDelete = () => {
+    if (initialValues?._id && onDelete) {
+      onDelete(initialValues._id);
+      onClose();
+    }
+  };
+
   return (
     <Modal
       title={title}
       open={visible}
       onCancel={onClose}
-
       footer={
         <div
           style={{
             display: 'flex',
-            justifyContent: 'flex-end',
-            gap: '12px',
+            justifyContent: 'space-between', // Changed to space-between to accommodate delete button
+            alignItems: 'center',
             backgroundColor: '#fafafa',
           }}
         >
-          <Button onClick={onClose}>Cancel</Button>
-          <Button type="primary" onClick={handleSubmit}>OK</Button>
+          {initialValues?._id && onDelete ? (
+            <Popconfirm
+              title="Delete Benefit"
+              description="Are you sure to delete this benefit?"
+              onConfirm={handleDelete}
+              okText="Yes"
+              cancelText="No"
+            >
+              <Button danger>Delete</Button>
+            </Popconfirm>
+          ) : (
+            <div /> // Spacer if no delete button
+          )}
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <Button onClick={onClose}>Cancel</Button>
+            <Button type="primary" onClick={handleSubmit}>OK</Button>
+          </div>
         </div>
       }
-
       destroyOnClose
     >
       <Form
@@ -93,6 +141,26 @@ const BenefitModal: React.FC<BenefitModalProps> = ({
             <Select.Option value="Housing">Housing</Select.Option>
             <Select.Option value="Canteen">Canteen</Select.Option>
           </Select>
+        </Form.Item>
+
+        <Form.Item
+          name="employee"
+          label="Employee (Optional)"
+        >
+          <Select
+            showSearch
+            placeholder="Select an employee"
+            optionFilterProp="children"
+            loading={loadingEmployees}
+            allowClear
+            filterOption={(input, option) =>
+              (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+            }
+            options={employees.map(emp => ({
+              value: (emp as any)._id || emp.id, // Handle both id formats
+              label: `${emp.name} (${emp.empIdNo})`,
+            }))}
+          />
         </Form.Item>
 
         <Form.Item
@@ -155,8 +223,6 @@ const BenefitModal: React.FC<BenefitModalProps> = ({
             );
           }}
         </Form.Item>
-
-
       </Form>
     </Modal>
   );

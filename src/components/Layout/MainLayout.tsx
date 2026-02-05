@@ -93,6 +93,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       label: <Link to="/marketing">Marketing</Link>,
     },
     {
+      key: 'offer-letter',
+      icon: <FileOutlined />,
+      label: <Link to="/offer-letter">Offer Letter</Link>,
+    },
+    {
       key: 'company-settings',
       icon: <SettingOutlined />,
       label: <Link to="/company-settings">Company Settings</Link>,

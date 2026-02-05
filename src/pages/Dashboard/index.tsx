@@ -30,6 +30,10 @@ const DashboardPage: React.FC = () => {
   const [summaryLoading, setSummaryLoading] = useState<boolean>(false);
   const [companiesStats, setCompaniesStats] = useState<any[]>([]);
   const [statsLoading, setStatsLoading] = useState<boolean>(false);
+  const [totalGlobalStats, setTotalGlobalStats] = useState<{ employees: number; companies: number }>({
+    employees: 0,
+    companies: 0
+  });
 
   // Fetch payrun summary when month, year, or company changes
   useEffect(() => {
@@ -71,7 +75,7 @@ const DashboardPage: React.FC = () => {
               // Get unique departments
               const departmentsSet = new Set(
                 (company.employees || [])
-                  .map(emp => emp?.department)
+                  .map((emp: any) => emp?.department)
                   .filter(Boolean)
               );
 
@@ -105,6 +109,21 @@ const DashboardPage: React.FC = () => {
     };
 
     calculateCompanyStats();
+
+    // Fetch global stats
+    const fetchGlobalStats = async () => {
+      try {
+        const globalEmployeeCount = await employeeService.getEmployeeCount();
+        setTotalGlobalStats({
+          employees: globalEmployeeCount,
+          companies: companies?.length || 0
+        });
+      } catch (error) {
+        console.error('Error fetching global stats:', error);
+      }
+    };
+
+    fetchGlobalStats();
   }, [companies]);
 
   if (loading) {
@@ -128,14 +147,14 @@ const DashboardPage: React.FC = () => {
   const currentEmployeeCount = currentCompanyEmployees.length;
 
   const currentDepartments = new Set(
-    currentCompanyEmployees.map(emp => emp?.department).filter(Boolean)
+    currentCompanyEmployees.map((emp: any) => emp?.department).filter(Boolean)
   ).size;
 
   const currentDesignations = new Set(
-    currentCompanyEmployees.map(emp => emp?.designation).filter(Boolean)
+    currentCompanyEmployees.map((emp: any) => emp?.designation).filter(Boolean)
   ).size;
 
-  const departmentStats = currentCompanyEmployees.reduce((acc, emp) => {
+  const departmentStats = currentCompanyEmployees.reduce((acc: any, emp: any) => {
     if (emp?.department) {
       acc[emp.department] = (acc[emp.department] || 0) + 1;
     }
@@ -184,7 +203,7 @@ const DashboardPage: React.FC = () => {
       key: 'distribution',
       render: (_: any, record: any) => {
         // Calculate percentage relative to the largest company for visualization context
-        const maxEmployees = Math.max(...companiesStats.map(c => c.employeeCount), 1);
+        const maxEmployees = Math.max(...companiesStats.map((c: any) => c.employeeCount), 1);
         return (
           <Progress
             percent={Math.round((record.employeeCount / maxEmployees) * 100)}
@@ -238,12 +257,81 @@ const DashboardPage: React.FC = () => {
         </Col>
       </Row>
 
+      {/* Global Statistics Cards */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={24} sm={12} lg={6}>
+          <Card
+            variant="outlined"
+            style={{
+              height: '100%',
+              background: 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)',
+              borderColor: 'transparent'
+            }}
+          >
+            <Statistic
+              title={<span style={{ color: 'rgba(255,255,255,0.85)' }}>Global Total Employees</span>}
+              value={totalGlobalStats.employees}
+              prefix={<TeamOutlined style={{ color: 'white' }} />}
+              valueStyle={{ color: 'white', fontWeight: 'bold' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card
+            variant="outlined"
+            style={{
+              height: '100%',
+              background: 'linear-gradient(135deg, #52c41a 0%, #389e0d 100%)',
+              borderColor: 'transparent'
+            }}
+          >
+            <Statistic
+              title={<span style={{ color: 'rgba(255,255,255,0.85)' }}>Total Companies</span>}
+              value={totalGlobalStats.companies}
+              prefix={<BankOutlined style={{ color: 'white' }} />}
+              valueStyle={{ color: 'white', fontWeight: 'bold' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card variant="outlined" style={{ height: '100%' }}>
+            <Statistic
+              title="Global Monthly Cost"
+              value={companiesStats.reduce((acc: number, curr: any) => acc + (curr.monthlyCost || 0), 0)}
+              prefix={<LineChartOutlined style={{ color: '#fa8c16' }} />}
+              suffix="₹"
+              precision={2}
+              valueStyle={{ color: '#fa8c16' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card
+            variant="outlined"
+            style={{
+              height: '100%',
+              background: '#fafafa',
+              borderStyle: 'dashed'
+            }}
+          >
+            <Statistic
+              title="Active Departments"
+              value={companiesStats.reduce((acc: number, curr: any) => acc + (curr.departmentCount || 0), 0)}
+              prefix={<ApartmentOutlined style={{ color: '#722ed1' }} />}
+              valueStyle={{ color: '#722ed1' }}
+            />
+          </Card>
+        </Col>
+      </Row>
+
+      <Divider orientation="left">Selected Company Analysis</Divider>
+
       {/* Main Statistics Cards - All Scoped to Selected Company */}
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={12} lg={6}>
           <Card variant="outlined" style={{ height: '100%' }}>
             <Statistic
-              title="Total Employees"
+              title="Company Employees"
               value={currentEmployeeCount}
               prefix={<TeamOutlined style={{ color: '#1890ff' }} />}
               valueStyle={{ color: '#1890ff' }}
@@ -261,7 +349,6 @@ const DashboardPage: React.FC = () => {
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          {/* Replaced 'Total Companies' with 'Designations' to keep context local */}
           <Card variant="outlined" style={{ height: '100%' }}>
             <Statistic
               title="Designations"
@@ -376,8 +463,8 @@ const DashboardPage: React.FC = () => {
             {selectedCompany && Object.keys(departmentStats).length > 0 ? (
               <List
                 size="small"
-                dataSource={Object.entries(departmentStats || {}).sort((a, b) => b[1] - a[1])}
-                renderItem={([department, count]) => (
+                dataSource={Object.entries(departmentStats || {}).sort((a: any, b: any) => b[1] - a[1])}
+                renderItem={([department, count]: [string, any]) => (
                   <List.Item>
                     <List.Item.Meta
                       title={department}

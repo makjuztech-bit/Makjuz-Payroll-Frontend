@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import {
   Card, Table, Button, Typography, Space, Tag, message, Row, Col,
-  Statistic, Modal, Alert, Select
+  Statistic, Modal, Alert, Select, Dropdown
 } from 'antd';
 import {
   DollarOutlined, CheckCircleOutlined, ClockCircleOutlined,
   TeamOutlined, BankOutlined, CalendarOutlined, UploadOutlined,
-  DownloadOutlined, FileExcelOutlined
+  DownloadOutlined, FileWordOutlined, FileExcelOutlined, DownOutlined
 } from '@ant-design/icons';
 import { useCompany, Employee } from '../../context/CompanyContext';
 import employeeService from '../../services/employeeService';
@@ -84,14 +84,17 @@ const PayRunsPage: React.FC = () => {
     setIsLoading(true);
     try {
       // First check if there's payrun data for this month/year
-      const payrunSummary = await payrunService.getPayrunSummary(selectedCompany._id, selectedMonth, selectedYear);
+      // const payrunSummary = await payrunService.getPayrunSummary(selectedCompany._id, selectedMonth, selectedYear);
 
-      // If no payrun data exists for this month/year, return empty array
+      // If no payrun data exists, we still fetch employees. 
+      // The backend's getPayrunDetails will generate default/demo data if missing.
+      /* 
       if (!payrunSummary || payrunSummary.totalEmployees === 0) {
         setEmployeeDetails([]);
         setIsLoading(false);
         return;
       }
+      */
 
       // Fetch all employees for the company
       const employees = await employeeService.getAllEmployees(selectedCompany._id);
@@ -228,6 +231,174 @@ const PayRunsPage: React.FC = () => {
     }
   };
 
+  const handleDownloadPFReport = async (format: 'xlsx' | 'txt' = 'xlsx') => {
+    if (!selectedCompany?._id) {
+      message.error('Please select a company first');
+      return;
+    }
+
+    if (totalEmployees === 0) {
+      message.error('No employee data for selected period');
+      return;
+    }
+
+    try {
+      setDownloading(true);
+      message.loading({ content: `Generating PF ${format.toUpperCase()} report...`, key: 'download' });
+
+      const blob = await payrunService.downloadPFReport(
+        selectedCompany._id,
+        selectedMonth,
+        selectedYear,
+        format
+      );
+
+      const mimeType = format === 'xlsx'
+        ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        : 'text/plain';
+
+      const url = window.URL.createObjectURL(
+        new Blob([blob], { type: mimeType })
+      );
+
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `PF_Report_${selectedMonth}_${selectedYear}.${format}`;
+      document.body.appendChild(a);
+      a.click();
+
+      setTimeout(() => window.URL.revokeObjectURL(url), 100);
+      message.success({ content: `PF ${format.toUpperCase()} Report downloaded`, key: 'download' });
+    } catch (error: any) {
+      console.error(error);
+      const errorMessage = error.response?.data?.message || `Failed to download PF ${format.toUpperCase()} Report`;
+      message.error({ content: errorMessage, key: 'download' });
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const handleDownloadESIReport = async (format: 'xlsx' | 'txt' = 'xlsx') => {
+    if (!selectedCompany?._id) {
+      message.error('Please select a company first');
+      return;
+    }
+
+    if (totalEmployees === 0) {
+      message.error('No employee data for selected period');
+      return;
+    }
+
+    try {
+      setDownloading(true);
+      message.loading({ content: `Generating ESI ${format.toUpperCase()} report...`, key: 'download' });
+
+      const blob = await payrunService.downloadESIReport(
+        selectedCompany._id,
+        selectedMonth,
+        selectedYear,
+        format
+      );
+
+      const mimeType = format === 'xlsx'
+        ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        : 'text/plain';
+
+      const url = window.URL.createObjectURL(
+        new Blob([blob], { type: mimeType })
+      );
+
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ESI_Report_${selectedMonth}_${selectedYear}.${format}`;
+      document.body.appendChild(a);
+      a.click();
+
+      setTimeout(() => window.URL.revokeObjectURL(url), 100);
+      message.success({ content: `ESI ${format.toUpperCase()} Report downloaded`, key: 'download' });
+    } catch (error: any) {
+      console.error(error);
+      const errorMessage = error.response?.data?.message || `Failed to download ESI ${format.toUpperCase()} Report`;
+      message.error({ content: errorMessage, key: 'download' });
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const handleDownloadInvoice = async () => {
+    if (!selectedCompany?._id) return;
+    try {
+      if (totalEmployees === 0) {
+        message.error('No employee data available for the selected month to generate invoice.');
+        return;
+      }
+      setDownloading(true);
+      message.loading({ content: 'Generating Invoice...', key: 'download' });
+
+      // Assuming downloadInvoice service method exists (we added it to service file)
+      const blob = await payrunService.downloadInvoice(
+        selectedCompany._id,
+        selectedMonth,
+        selectedYear
+      );
+
+      const url = window.URL.createObjectURL(new Blob([blob], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Invoice_${selectedCompany.name}_${selectedMonth}_${selectedYear}.docx`;
+      document.body.appendChild(a);
+      a.click();
+
+      setTimeout(() => window.URL.revokeObjectURL(url), 100);
+      message.success({ content: 'Invoice downloaded', key: 'download' });
+    } catch (error) {
+      console.error('Error downloading invoice:', error);
+      message.error({ content: 'Failed to download Invoice', key: 'download' });
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const handleDownloadBankReport = async (type: 'iob' | 'non-iob', format: 'xlsx' | 'txt') => {
+    if (!selectedCompany?._id) return;
+    try {
+      if (totalEmployees === 0) {
+        message.error(`No employee data available to generate ${type.toUpperCase()} report.`);
+        return;
+      }
+      setDownloading(true);
+      message.loading({ content: `Generating ${type.toUpperCase()} ${format.toUpperCase()} Report...`, key: 'download' });
+
+      const blob = await payrunService.downloadBankReport(
+        selectedCompany._id,
+        selectedMonth,
+        selectedYear,
+        type,
+        format
+      );
+
+      const mimeType = format === 'xlsx'
+        ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        : 'text/plain';
+
+      const url = window.URL.createObjectURL(new Blob([blob], { type: mimeType }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${type.toUpperCase()}_Report_${selectedMonth}_${selectedYear}.${format}`;
+      document.body.appendChild(a);
+      a.click();
+
+      setTimeout(() => window.URL.revokeObjectURL(url), 100);
+      message.success({ content: `${type.toUpperCase()} ${format.toUpperCase()} Report downloaded`, key: 'download' });
+    } catch (error: any) {
+      console.error(`Error downloading ${type} report:`, error);
+      const errorMessage = error.response?.data?.message || `Failed to download ${type.toUpperCase()} Report`;
+      message.error({ content: errorMessage, key: 'download' });
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   const handleUploadSuccess = () => {
     message.success(`Payrun data for ${selectedMonth} ${selectedYear} has been successfully imported!`);
     fetchEmployeeDetails();
@@ -283,6 +454,24 @@ const PayRunsPage: React.FC = () => {
       ),
     },
     {
+      title: 'PF Amount',
+      dataIndex: 'pfAmount',
+      key: 'pfAmount',
+      render: (value: number | undefined) => `₹${value?.toFixed(2) || '0.00'}`,
+    },
+    {
+      title: 'ESI Amount',
+      dataIndex: 'esiAmount',
+      key: 'esiAmount',
+      render: (value: number | undefined) => `₹${value?.toFixed(2) || '0.00'}`,
+    },
+    {
+      title: 'GST (18%)',
+      dataIndex: 'gst',
+      key: 'gst',
+      render: (value: number | undefined) => `₹${value?.toFixed(2) || '0.00'}`,
+    },
+    {
       title: 'Net Pay',
       dataIndex: 'calculatedFinalNetPay',
       key: 'calculatedFinalNetPay',
@@ -326,17 +515,15 @@ const PayRunsPage: React.FC = () => {
           >
             Pay Now
           </Button>
-          {paymentStatus[record.id] === 'paid' && (
-            <Button
-              type="link"
-              onClick={() => {
-                setSelectedEmployee(record);
-                setShowPayslip(true);
-              }}
-            >
-              View Payslip
-            </Button>
-          )}
+          <Button
+            type="link"
+            onClick={() => {
+              setSelectedEmployee(record);
+              setShowPayslip(true);
+            }}
+          >
+            View Payslip
+          </Button>
         </Space>
       ),
     },
@@ -425,12 +612,14 @@ const PayRunsPage: React.FC = () => {
           <Row style={{ marginBottom: 16 }}>
             <Col span={24}>
               <Card variant="outlined" style={{ borderRadius: '8px' }}>
-                <Space direction="vertical" style={{ width: '100%' }}>
-                  <Space style={{ justifyContent: 'space-between', width: '100%' }}>
-                    <Title level={5} style={{ margin: 0, color: '#722ed1' }}>
+                <Row justify="space-between" align="middle" gutter={[16, 16]}>
+                  <Col>
+                    <Title level={5} style={{ margin: 0, color: '#722ed1', whiteSpace: 'nowrap' }}>
                       Payroll Management
                     </Title>
-                    <Space>
+                  </Col>
+                  <Col>
+                    <Space wrap>
                       <Select
                         value={selectedMonth}
                         onChange={setSelectedMonth}
@@ -468,6 +657,107 @@ const PayRunsPage: React.FC = () => {
                       >
                         Download Paysheet
                       </Button>
+                      <Dropdown
+                        menu={{
+                          items: [
+                            {
+                              key: 'pf-excel',
+                              icon: <FileExcelOutlined />,
+                              label: 'PF Report (Excel)',
+                              onClick: () => handleDownloadPFReport('xlsx')
+                            },
+                            {
+                              key: 'pf-txt',
+                              icon: <DownloadOutlined />,
+                              label: 'PF Report (TXT)',
+                              onClick: () => handleDownloadPFReport('txt')
+                            }
+                          ]
+                        }}
+                        trigger={['click']}
+                      >
+                        <Button
+                          icon={<DownloadOutlined />}
+                          disabled={totalEmployees === 0 || downloading}
+                        >
+                          PF Report <DownOutlined />
+                        </Button>
+                      </Dropdown>
+                      <Button
+                        icon={<FileWordOutlined />}
+                        onClick={handleDownloadInvoice}
+                        disabled={totalEmployees === 0 || downloading}
+                      >
+                        Invoice (Word)
+                      </Button>
+                      <Dropdown
+                        menu={{
+                          items: [
+                            {
+                              key: 'iob-excel',
+                              icon: <FileExcelOutlined />,
+                              label: 'IOB (Excel)',
+                              onClick: () => handleDownloadBankReport('iob', 'xlsx')
+                            },
+                            {
+                              key: 'iob-txt',
+                              icon: <DownloadOutlined />,
+                              label: 'IOB (TXT)',
+                              onClick: () => handleDownloadBankReport('iob', 'txt')
+                            },
+                            {
+                              type: 'divider'
+                            },
+                            {
+                              key: 'non-iob-excel',
+                              icon: <FileExcelOutlined />,
+                              label: 'Non-IOB (Excel)',
+                              onClick: () => handleDownloadBankReport('non-iob', 'xlsx')
+                            },
+                            {
+                              key: 'non-iob-txt',
+                              icon: <DownloadOutlined />,
+                              label: 'Non-IOB (TXT)',
+                              onClick: () => handleDownloadBankReport('non-iob', 'txt')
+                            }
+                          ]
+                        }}
+                        trigger={['click']}
+                      >
+                        <Button
+                          icon={<BankOutlined />}
+                          loading={downloading}
+                          disabled={totalEmployees === 0}
+                        >
+                          Bank Reports <DownOutlined />
+                        </Button>
+                      </Dropdown>
+                      <Dropdown
+                        menu={{
+                          items: [
+                            {
+                              key: 'esi-excel',
+                              icon: <FileExcelOutlined />,
+                              label: 'ESI Report (Excel)',
+                              onClick: () => handleDownloadESIReport('xlsx')
+                            },
+                            {
+                              key: 'esi-txt',
+                              icon: <DownloadOutlined />,
+                              label: 'ESI Report (TXT)',
+                              onClick: () => handleDownloadESIReport('txt')
+                            }
+                          ]
+                        }}
+                        trigger={['click']}
+                      >
+                        <Button
+                          icon={<DownloadOutlined />}
+                          disabled={totalEmployees === 0 || downloading}
+                        >
+                          ESI Report <DownOutlined />
+                        </Button>
+                      </Dropdown>
                       <Button
                         type="primary"
                         onClick={() => setShowConfirmModal(true)}
@@ -476,8 +766,8 @@ const PayRunsPage: React.FC = () => {
                         Pay All ({pendingEmployees})
                       </Button>
                     </Space>
-                  </Space>
-                </Space>
+                  </Col>
+                </Row>
               </Card>
             </Col>
           </Row>
@@ -535,6 +825,8 @@ const PayRunsPage: React.FC = () => {
               employee={selectedEmployee}
               companyName={selectedCompany.name}
               companyId={selectedCompany._id}
+              month={selectedMonth}
+              year={selectedYear}
               onClose={() => {
                 setShowPayslip(false);
                 setSelectedEmployee(null);

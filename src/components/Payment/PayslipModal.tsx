@@ -1,8 +1,10 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Modal, Button, Typography, Divider, Row, Col, Card, Alert } from 'antd';
+import { Modal, Button, Typography, Divider, Row, Col, message } from 'antd';
+import { FileWordOutlined } from '@ant-design/icons';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import benefitService, { Benefit } from '../../services/benefitService';
+import payrunService from '../../services/payrunService';
 
 const { Title, Text } = Typography;
 
@@ -12,32 +14,27 @@ interface PayslipModalProps {
   employee: any; // Change to any to accept both Employee and PayrunEmployee
   companyName: string;
   companyId: string;
+  month: string;
+  year: string;
 }
 
-// Bank details helper to ensure we have all possible field names covered
-const getBankDetail = (employee: any, fieldNames: string[]) => {
-  for (const field of fieldNames) {
-    if (employee[field] !== undefined && employee[field] !== null) {
-      return employee[field];
-    }
-  }
-  return '';
-};
 
 const PayslipModal: React.FC<PayslipModalProps> = ({
   visible,
   onClose,
   employee,
   companyName,
-  companyId
+  companyId,
+  month,
+  year
 }) => {
   const [benefits, setBenefits] = useState<Benefit[]>([]);
+  const [downloading, setDownloading] = useState(false);
 
   console.log('PayslipModal received employee data:', employee);
 
   const ref = useRef<HTMLDivElement>(null);
-  const currentDate = new Date();
-  const payPeriod = `${currentDate.toLocaleString('default', { month: 'long' })} ${currentDate.getFullYear()}`;
+  const payPeriod = `${month} ${year}`;
 
   // Fetch benefits when modal opens
   useEffect(() => {
@@ -84,6 +81,33 @@ const PayslipModal: React.FC<PayslipModalProps> = ({
     }
   };
 
+  const handleDownloadWord = async () => {
+    try {
+      setDownloading(true);
+      message.loading({ content: 'Generating Word Payslip...', key: 'word_download' });
+
+      const blob = await payrunService.downloadWordPayslip(companyId, employee._id || employee.id, month, year);
+
+      const url = window.URL.createObjectURL(
+        new Blob([blob], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' })
+      );
+
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${employee.name}-payslip-${month}-${year}.docx`;
+      document.body.appendChild(a);
+      a.click();
+
+      setTimeout(() => window.URL.revokeObjectURL(url), 100);
+      message.success({ content: 'Word Payslip downloaded!', key: 'word_download' });
+    } catch (error) {
+      console.error('Word download error:', error);
+      message.error({ content: 'Failed to download Word Payslip. Ensure template is uploaded.', key: 'word_download' });
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   // Handle employee ID display properly - could be emp_id_no from API or empIdNo from frontend
   const displayEmployeeId = () => {
     if (employee.emp_id_no) {
@@ -93,6 +117,23 @@ const PayslipModal: React.FC<PayslipModalProps> = ({
     } else {
       return `EMP${employee._id?.toString().substring(0, 8) || ''}`;
     }
+  };
+
+  const numberToWords = (num: number) => {
+    const a = ['', 'One ', 'Two ', 'Three ', 'Four ', 'Five ', 'Six ', 'Seven ', 'Eight ', 'Nine ', 'Ten ', 'Eleven ', 'Twelve ', 'Thirteen ', 'Fourteen ', 'Fifteen ', 'Sixteenth ', 'Seventeen ', 'Eighteen ', 'Nineteen '];
+    const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+    const inWords = (n: number): string => {
+      if (n < 20) return a[n];
+      if (n < 100) return b[Math.floor(n / 10)] + ' ' + a[n % 10];
+      if (n < 1000) return inWords(Math.floor(n / 100)) + 'Hundred ' + inWords(n % 100);
+      if (n < 100000) return inWords(Math.floor(n / 1000)) + 'Thousand ' + inWords(n % 1000);
+      if (n < 10000000) return inWords(Math.floor(n / 100000)) + 'Lakh ' + inWords(n % 100000);
+      return inWords(Math.floor(n / 10000000)) + 'Crore ' + inWords(n % 10000000);
+    };
+
+    const str = inWords(Math.floor(num));
+    return str ? str + 'Only' : 'Zero Only';
   };
 
   return (
@@ -119,260 +160,159 @@ const PayslipModal: React.FC<PayslipModalProps> = ({
       open={visible}
       onCancel={onClose}
       footer={[
-        <Button key="download" type="primary" onClick={handleDownload}>
+        <Button key="download-pdf" onClick={handleDownload}>
           Download PDF
+        </Button>,
+        <Button
+          key="download-word"
+          type="primary"
+          onClick={handleDownloadWord}
+          loading={downloading}
+          icon={<FileWordOutlined />}
+        >
+          Download Word
         </Button>,
         <Button key="close" onClick={onClose}>
           Close
         </Button>,
       ]}
     >
-      <div ref={ref} style={{ padding: 16, background: '#fff', marginTop: 12 }}>
-        <Card variant="outlined">
-          <Title level={3} style={{ textAlign: 'center', color: '#1890ff' }}>
-            {companyName}
-          </Title>
-          <Title level={5} style={{ textAlign: 'center', marginTop: 0 }}>
-            Payslip for {payPeriod}
-          </Title>
+      <div ref={ref} style={{ padding: '40px', background: '#fff', color: '#000', fontFamily: 'Arial, sans-serif' }}>
+        {/* Header Section */}
+        <Row align="middle" justify="space-between" style={{ marginBottom: '20px' }}>
+          <Col span={8}>
+            <img src="/src/assets/image.png" alt="Logo" style={{ maxWidth: '180px' }} />
+          </Col>
+          <Col span={8} style={{ textAlign: 'center' }}>
+            <Title level={2} style={{ margin: 0, textDecoration: 'underline', color: '#000' }}>TAX INVOICE</Title>
+            <Text>Payslip for {payPeriod}</Text>
+          </Col>
+          <Col span={8} style={{ textAlign: 'right' }}>
+            {/* Empty for balance or could put QR placeholder */}
+          </Col>
+        </Row>
 
-          <Divider />
+        {/* Invoice Info Table */}
+        <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000', fontSize: '12px' }}>
+          <tbody>
+            <tr>
+              <td style={{ width: '50%', border: '1px solid #000', padding: '8px' }}>
+                <Text strong>Invoice No:</Text> LEV/{displayEmployeeId()}/{year.slice(-2)}-{parseInt(year.slice(-2)) + 1}<br />
+                <Text strong>Invoice Date:</Text> {new Date().toLocaleDateString('en-GB')}<br />
+                <Text strong>Tax Reverse Charge (Y/N):</Text> No<br />
+                <Text strong>State:</Text> Tamil Nadu <Text strong>Code:</Text> 33
+              </td>
+              <td style={{ width: '50%', border: '1px solid #000', padding: '8px' }}>
+                <Text strong>PO Number:</Text> - <Text strong>PO Date:</Text> -<br />
+                <Text strong>IRN No:</Text> -<br />
+                <Text strong>GSTIN:</Text> 33AAECL8763A1ZO<br />
+                <Text strong>SAC Code Pin Code:</Text> 998519 / 600099
+              </td>
+            </tr>
+          </tbody>
+        </table>
 
-          {/* Employee Information */}
-          <div style={{ background: '#f5f5f5', padding: 16, borderRadius: 8, marginBottom: 16 }}>
-            <Row gutter={[16, 8]}>
-              <Col span={12}>
-                <Text strong>Employee ID:</Text> {displayEmployeeId()}
-              </Col>
-              <Col span={12}>
-                <Text strong>Employee Name:</Text> {employee.name}
-              </Col>
-              <Col span={12}>
-                <Text strong>Department:</Text> {employee.department}
-              </Col>
-              <Col span={12}>
-                <Text strong>Designation:</Text> {employee.designation}
-              </Col>
-              <Col span={12}>
-                <Text strong>Location:</Text> {employee.location || 'Not specified'}
-              </Col>
-              <Col span={12}>
-                <Text strong>Pay Period:</Text> {payPeriod}
-              </Col>
-            </Row>
-          </div>
+        {/* Parties Table */}
+        <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000', marginTop: '10px', fontSize: '12px' }}>
+          <thead>
+            <tr style={{ backgroundColor: '#f2f2f2' }}>
+              <th style={{ border: '1px solid #000', padding: '8px', textAlign: 'left', width: '50%' }}>Bill To Party (Employee Information)</th>
+              <th style={{ border: '1px solid #000', padding: '8px', textAlign: 'left', width: '50%' }}>Seller / Organization</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style={{ border: '1px solid #000', padding: '8px', verticalAlign: 'top' }}>
+                <Text strong>Name:</Text> {employee.name}<br />
+                <Text strong>Division:</Text> {employee.department || '-'}<br />
+                <Text strong>Address:</Text> {employee.location || employee.permanent_address || '-'}<br />
+                <Text strong>State:</Text> {employee.state || 'Tamil Nadu'}<br />
+                <Text strong>Pin Code:</Text> {employee.pincode || '-'}<br />
+                <Text strong>Employee ID:</Text> {displayEmployeeId()}<br />
+                <Text strong>Bank Type:</Text> {(employee.ifscCode || employee.ifsc_code || employee.ifsc)?.toUpperCase().startsWith('IOBA') ? 'IOB' : 'NON IOB'}
+              </td>
+              <td style={{ border: '1px solid #000', padding: '8px', verticalAlign: 'top' }}>
+                <Text strong>LEVIVAAN SOLUTIONS PVT LTD</Text><br />
+                17/2, Thirupathinagar, 1st main road,<br />
+                Kolathur, Chennai - 600099<br />
+                <Text strong>GSTIN:</Text> 33AAECL8763A1ZO<br />
+                <Text strong>PH NO:</Text> 8608020025, 8939064040<br />
+                <Text strong>Email:</Text> admin@levivaan.com
+              </td>
+            </tr>
+          </tbody>
+        </table>
 
-          {/* Salary Details */}
-          <Row gutter={16}>
-            <Col span={12}>
-              <Card title="Earnings" variant="outlined" style={{ background: '#e6f7ff' }}>
-                <Row justify="space-between">
-                  <Col>Fixed Stipend</Col>
-                  <Col>₹{formatCurrency(employee.fixedStipend || employee.fixed_stipend)}</Col>
-                </Row>
-                <Row justify="space-between" style={{ marginTop: 8 }}>
-                  <Col>Special Allowance</Col>
-                  <Col>₹{formatCurrency(employee.specialAllowance)}</Col>
-                </Row>
-                <Row justify="space-between" style={{ marginTop: 8 }}>
-                  <Col>Earned Stipend</Col>
-                  <Col>₹{formatCurrency(employee.earnedStipend)}</Col>
-                </Row>
-                <Row justify="space-between" style={{ marginTop: 8 }}>
-                  <Col>Earned Special Allowance</Col>
-                  <Col>₹{formatCurrency(employee.earnedSpecialAllowance)}</Col>
-                </Row>
-                <Row justify="space-between" style={{ marginTop: 8 }}>
-                  <Col>Transport</Col>
-                  <Col>₹{formatCurrency(employee.transport)}</Col>
-                </Row>
-                <Row justify="space-between" style={{ marginTop: 8 }}>
-                  <Col>OT Earnings</Col>
-                  <Col>₹{formatCurrency(employee.earningsOt)}</Col>
-                </Row>
-                {(employee.attendanceIncentive > 0) && (
-                  <Row justify="space-between" style={{ marginTop: 8 }}>
-                    <Col>Attendance Incentive</Col>
-                    <Col>₹{formatCurrency(employee.attendanceIncentive)}</Col>
-                  </Row>
-                )}
-                <Divider style={{ margin: '12px 0' }} />
-                <Row justify="space-between">
-                  <Col><Text strong>Total Earnings</Text></Col>
-                  <Col><Text strong>₹{formatCurrency(employee.totalEarning)}</Text></Col>
-                </Row>
-              </Card>
-            </Col>
+        {/* Product Description / Earnings Table */}
+        <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000', marginTop: '10px', fontSize: '12px' }}>
+          <thead>
+            <tr style={{ backgroundColor: '#f2f2f2' }}>
+              <th style={{ border: '1px solid #000', padding: '8px', textAlign: 'left' }}>Product Description (Earnings & Deductions)</th>
+              <th style={{ border: '1px solid #000', padding: '8px', textAlign: 'center', width: '100px' }}>Rate</th>
+              <th style={{ border: '1px solid #000', padding: '8px', textAlign: 'center', width: '100px' }}>Qty / Days</th>
+              <th style={{ border: '1px solid #000', padding: '8px', textAlign: 'right', width: '120px' }}>Amount (₹)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style={{ border: '1px solid #000', padding: '8px' }}>CTC Salary for {payPeriod}</td>
+              <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}>-</td>
+              <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}>{employee.presentDays || 0}</td>
+              <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'right' }}>{formatCurrency(employee.totalEarning)}</td>
+            </tr>
+            <tr>
+              <td style={{ border: '1px solid #000', padding: '8px' }}>Less: Total Deductions (Incl. Management Fee, Insurance)</td>
+              <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}>-</td>
+              <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}>-</td>
+              <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'right' }}>-{formatCurrency(adjustedTotalDeductions)}</td>
+            </tr>
+            {benefits.length > 0 && benefits.map(b => (
+              <tr key={b._id}>
+                <td style={{ border: '1px solid #000', padding: '8px' }}>Less: {b.title}</td>
+                <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}>-</td>
+                <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}>-</td>
+                <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'right' }}>-{formatCurrency(b.amount)}</td>
+              </tr>
+            ))}
+            <tr style={{ fontWeight: 'bold' }}>
+              <td colSpan={3} style={{ border: '1px solid #000', padding: '8px', textAlign: 'right' }}>Total Net Payable</td>
+              <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'right' }}>₹{formatCurrency(adjustedFinalNetPay)}</td>
+            </tr>
+          </tbody>
+        </table>
 
-            <Col span={12}>
-              <Card title="Deductions" variant="outlined" style={{ background: '#fff2e8' }}>
-                <Row justify="space-between">
-                  <Col>Management Fee</Col>
-                  <Col>₹{formatCurrency(employee.managementFee)}</Col>
-                </Row>
-                <Row justify="space-between" style={{ marginTop: 8 }}>
-                  <Col>Insurance</Col>
-                  <Col>₹{formatCurrency(employee.insurance)}</Col>
-                </Row>
-                <Row justify="space-between" style={{ marginTop: 8 }}>
-                  <Col>Canteen</Col>
-                  <Col>₹{formatCurrency(employee.canteen)}</Col>
-                </Row>
-                {(employee.lop > 0) && (
-                  <Row justify="space-between" style={{ marginTop: 8 }}>
-                    <Col>LOP Deduction</Col>
-                    <Col>₹{formatCurrency(employee.lop)}</Col>
-                  </Row>
-                )}
+        <div style={{ marginTop: '10px', fontSize: '12px', fontStyle: 'italic' }}>
+          <Text strong>RUPEES:</Text> {numberToWords(adjustedFinalNetPay)}
+        </div>
 
-                {/* Benefits Section */}
-                {benefits.length > 0 && (
-                  <>
-                    <Divider style={{ margin: '12px 0' }} />
-                    <Text strong style={{ color: '#fa8c16' }}>Benefits:</Text>
-                    {benefits.map((benefit) => (
-                      <Row justify="space-between" style={{ marginTop: 8 }} key={benefit._id}>
-                        <Col>{benefit.title}</Col>
-                        <Col>₹{formatCurrency(benefit.amount)}</Col>
-                      </Row>
-                    ))}
-                  </>
-                )}
+        {/* Footer Details */}
+        <Row style={{ marginTop: '20px', fontSize: '11px', border: '1px solid #000', padding: '10px' }}>
+          <Col span={24}>
+            <Text strong>PAN NO:</Text> AAECL8763A | <Text strong>CIN:</Text> U74140TN2022PTC148967<br />
+            <Text strong>Details Of The Payment To Be Made To:</Text> "Levivaan Solutions Private Limited"<br />
+            <Text strong>Account No:</Text> 332802000000181 | <Text strong>IFSC:</Text> IOBA0003328 | <Text strong>Bank:</Text> IOB Kolathur
+          </Col>
+        </Row>
 
-                <Divider style={{ margin: '12px 0' }} />
-                <Row justify="space-between">
-                  <Col><Text strong>Total Deductions</Text></Col>
-                  <Col><Text strong>₹{formatCurrency(adjustedTotalDeductions)}</Text></Col>
-                </Row>
-              </Card>
-            </Col>
-          </Row>
-
-          {/* Net Pay */}
-          <div style={{
-            marginTop: 24,
-            textAlign: 'center',
-            background: '#f6ffed',
-            padding: 16,
-            borderRadius: 8,
-            border: '1px solid #b7eb8f'
-          }}>
-            <Text strong style={{ fontSize: 16 }}>Final Net Pay: </Text>
-            <Text style={{ fontSize: 24, color: '#52c41a', fontWeight: 'bold' }}>
-              ₹{formatCurrency(adjustedFinalNetPay)}
-            </Text>
-          </div>
-
-          {/* Attendance Summary */}
-          <div style={{ marginTop: 24 }}>
-            <Title level={5}>Attendance Summary</Title>
-            <Row gutter={16}>
-              <Col span={6}>
-                <Card variant="outlined">
-                  <div style={{ textAlign: 'center' }}>
-                    <Text strong>Total Fixed Days</Text>
-                    <div style={{ fontSize: 24, color: '#1890ff' }}>{employee.totalFixedDays || 0}</div>
-                  </div>
-                </Card>
-              </Col>
-              <Col span={6}>
-                <Card variant="outlined">
-                  <div style={{ textAlign: 'center' }}>
-                    <Text strong>Present Days</Text>
-                    <div style={{ fontSize: 24, color: '#52c41a' }}>{employee.presentDays || 0}</div>
-                  </div>
-                </Card>
-              </Col>
-              <Col span={6}>
-                <Card variant="outlined">
-                  <div style={{ textAlign: 'center' }}>
-                    <Text strong>Holidays</Text>
-                    <div style={{ fontSize: 24, color: '#722ed1' }}>{employee.holidays || 0}</div>
-                  </div>
-                </Card>
-              </Col>
-              <Col span={6}>
-                <Card variant="outlined">
-                  <div style={{ textAlign: 'center' }}>
-                    <Text strong>Total Payable Days</Text>
-                    <div style={{ fontSize: 24, color: '#fa8c16' }}>{employee.totalPayableDays || 0}</div>
-                  </div>
-                </Card>
-              </Col>
-            </Row>
-          </div>
-
-          {/* Additional Details */}
-          <div style={{ marginTop: 24 }}>
-            <Title level={5}>Billing Summary</Title>
-            <Row gutter={16}>
-              <Col span={8}>
-                <Card variant="outlined">
-                  <div style={{ textAlign: 'center' }}>
-                    <Text strong>Billable Total</Text>
-                    <div style={{ fontSize: 20, color: '#1890ff' }}>₹{formatCurrency(employee.billableTotal)}</div>
-                  </div>
-                </Card>
-              </Col>
-              <Col span={8}>
-                <Card variant="outlined">
-                  <div style={{ textAlign: 'center' }}>
-                    <Text strong>GST (18%)</Text>
-                    <div style={{ fontSize: 20, color: '#722ed1' }}>₹{formatCurrency(employee.gst)}</div>
-                  </div>
-                </Card>
-              </Col>
-              <Col span={8}>
-                <Card variant="outlined">
-                  <div style={{ textAlign: 'center' }}>
-                    <Text strong>Grand Total</Text>
-                    <div style={{ fontSize: 20, color: '#52c41a' }}>₹{formatCurrency(employee.grandTotal)}</div>
-                  </div>
-                </Card>
-              </Col>
-            </Row>
-          </div>
-
-          {employee.remarks && (
-            <div style={{ marginTop: 24 }}>
-              <Title level={5}>Remarks</Title>
-              <Alert message={employee.remarks} type="info" />
+        {/* Terms and Signature */}
+        <Row style={{ marginTop: '10px', fontSize: '11px' }}>
+          <Col span={14} style={{ border: '1px solid #000', padding: '10px' }}>
+            <Text strong>Terms & Conditions:</Text><br />
+            We declare that this invoice shows that actual price of the service provided and that all particulars are true and correct. All disputes are subject to Chennai Jurisdiction.
+          </Col>
+          <Col span={10} style={{ border: '1px solid #000', padding: '10px', textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+            <Text>Certified that the particular given above are true and correct</Text>
+            <div style={{ marginTop: '40px' }}>
+              <Text strong>A. Silambarasan</Text><br />
+              <Text>Director</Text>
             </div>
-          )}
+          </Col>
+        </Row>
 
-          <div style={{ marginTop: 24 }}>
-            <Title level={5}>Payment Details</Title>
-            <Card variant="outlined">
-              <Row justify="space-between">
-                <Col><Text strong>DBT Transfer Amount:</Text></Col>
-                <Col><Text strong>₹{formatCurrency(employee.dbt)}</Text></Col>
-              </Row>
-              <Row justify="space-between" style={{ marginTop: 8 }}>
-                <Col>Account Number:</Col>
-                <Col>{getBankDetail(employee, ['accountNumber', 'bankAccount', 'account_number', 'bankAccountNumber']) || 'Not provided'}</Col>
-              </Row>
-              <Row justify="space-between" style={{ marginTop: 8 }}>
-                <Col>IFSC Code:</Col>
-                <Col>{getBankDetail(employee, ['ifsc', 'ifscCode', 'ifsc_code']) || 'Not provided'}</Col>
-              </Row>
-              <Row justify="space-between" style={{ marginTop: 8 }}>
-                <Col>Bank Name:</Col>
-                <Col>{getBankDetail(employee, ['bankName', 'bank_name', 'bank']) || 'Not provided'}</Col>
-              </Row>
-              <Row justify="space-between" style={{ marginTop: 8 }}>
-                <Col>Account Holder:</Col>
-                <Col>{getBankDetail(employee, ['accountHolderName', 'account_holder_name', 'accountHolder', 'account_holder']) || employee.name}</Col>
-              </Row>
-            </Card>
-          </div>
-
-          <Divider />
-
-          <div style={{ textAlign: 'center', fontSize: 12, color: '#888' }}>
-            <p>This is a computer-generated payslip and does not require a signature.</p>
-            <p>{companyName} - {new Date().getFullYear()}</p>
-          </div>
-        </Card>
+        <div style={{ marginTop: '20px', textAlign: 'center', fontSize: '10px', color: '#666' }}>
+          Regoff: 17/2, Thirupathinagar, 1st main road, Kolathur, ch-99 PHNO: 8608020025, 8939064040<br />
+          Email: admin@levivaan.com | Web: www.levivaansolutions.com
+        </div>
       </div>
     </Modal>
   );

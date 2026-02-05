@@ -103,6 +103,20 @@ const BenefitsPage: React.FC = () => {
   };
 
 
+  const handleDeleteBenefit = async (id: string) => {
+    try {
+      await benefitService.deleteBenefit(id);
+      setBenefits(prev => prev.filter(b => b._id !== id));
+      message.success('Benefit deleted successfully');
+      setIsEditModalVisible(false);
+      setEditingBenefit(null);
+    } catch (error) {
+      console.error('Error deleting benefit:', error);
+      message.error('Failed to delete benefit');
+    }
+  };
+
+
   const getBenefitIcon = (type: string) => {
     switch (type) {
       case 'WC':
@@ -216,6 +230,18 @@ const BenefitsPage: React.FC = () => {
                       <p style={{ textAlign: 'center', color: '#666', marginBottom: 16 }}>
                         {benefit.description}
                       </p>
+                      {/* Display assigned employee if any */}
+                      {benefit.employee && typeof benefit.employee === 'object' && (
+                        <p style={{ textAlign: 'center', color: '#888', marginBottom: 8, fontSize: '12px' }}>
+                          Assigned to: <strong>{(benefit.employee as any).name}</strong>
+                        </p>
+                      )}
+                      {benefit.employee && typeof benefit.employee === 'string' && (
+                        <p style={{ textAlign: 'center', color: '#888', marginBottom: 8, fontSize: '12px' }}>
+                          Assigned to: Employee ID {benefit.employee}
+                        </p>
+                      )}
+
                       <div style={{ textAlign: 'center', fontSize: '18px', color: '#722ed1' }}>
                         ₹{benefit.amount.toLocaleString()}
                       </div>
@@ -238,6 +264,7 @@ const BenefitsPage: React.FC = () => {
         visible={isAddModalVisible}
         onClose={() => setIsAddModalVisible(false)}
         onSubmit={handleAddBenefit}
+        companyId={selectedCompany?._id}
       />
 
       <BenefitModal
@@ -247,7 +274,9 @@ const BenefitsPage: React.FC = () => {
           setEditingBenefit(null);
         }}
         onSubmit={handleEditBenefit}
+        onDelete={handleDeleteBenefit}
         initialValues={editingBenefit || undefined}
+        companyId={selectedCompany?._id}
       />
 
     </div>

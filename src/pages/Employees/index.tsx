@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Typography, Select, Empty, Space, Table, Button, Tag, Input, message, Tooltip } from 'antd';
+import { useNavigate } from 'react-router-dom';
+import dayjs from 'dayjs';
+import { Typography, Select, Empty, Space, Table, Button, Tag, Input, message, Tooltip, Modal } from 'antd';
 import { SearchOutlined, EyeOutlined, DeleteOutlined, SettingOutlined } from '@ant-design/icons';
 import { useCompany, Employee } from '../../context/CompanyContext';
 import AddEmployeeModal from '../../components/Employee/AddEmployeeModal';
@@ -12,11 +14,16 @@ import FormCustomizationModal, { FieldConfig, DEFAULT_FIELD_CONFIG } from '../..
 const { Title } = Typography;
 
 const EmployeesPage: React.FC = () => {
+  const navigate = useNavigate();
   const [messageApi, contextHolder] = message.useMessage();
   const { selectedCompany } = useCompany();
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [payslipEmp, setPayslipEmp] = useState<Employee | null>(null);
+
+  // Delete Modal State
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deleteTargetEmployee, setDeleteTargetEmployee] = useState<Employee | null>(null);
 
   // Customization State
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
@@ -98,7 +105,10 @@ const EmployeesPage: React.FC = () => {
       emp.name.toLowerCase().includes(searchText.toLowerCase()) ||
       emp.empIdNo.toLowerCase().includes(searchText.toLowerCase());
 
-    return matchesDepartment && matchesCategory && matchesSalaryType && matchesEmployeeCategory && matchesSearch;
+    // Filter out recycled employees
+    const isNotRecycled = emp.status !== 'Recycled';
+
+    return matchesDepartment && matchesCategory && matchesSalaryType && matchesEmployeeCategory && matchesSearch && isNotRecycled;
   });
 
   // Get unique values for filters
@@ -369,15 +379,9 @@ const EmployeesPage: React.FC = () => {
               type="link"
               icon={<DeleteOutlined />}
               danger
-              onClick={async () => {
-                try {
-                  await employeeService.deleteEmployee(record.id);
-                  setEmployees(prev => prev.filter(emp => emp.id !== record.id));
-                  messageApi.success('Employee deleted successfully');
-                } catch (error) {
-                  console.error('Error deleting employee:', error);
-                  messageApi.error('Failed to delete employee');
-                }
+              onClick={() => {
+                setDeleteTargetEmployee(record);
+                setIsDeleteModalOpen(true);
               }}
             >
               Delete
@@ -418,6 +422,12 @@ const EmployeesPage: React.FC = () => {
             fieldConfig={formConfig}
           />
           <ImportExcel />
+          <Button
+            icon={<DeleteOutlined />}
+            onClick={() => navigate('/employees/restore')}
+          >
+            Recycle Bin
+          </Button>
         </Space>
       </div>
 
@@ -558,8 +568,61 @@ const EmployeesPage: React.FC = () => {
           companyName={selectedCompany?.name || 'Payroll System'}
           onClose={closePayslip}
           companyId={selectedCompany?._id || ''}
+          month={dayjs().format('MMMM')}
+          year={dayjs().year().toString()}
         />
       )}
+
+      <Modal
+        title="Delete Employee"
+        open={isDeleteModalOpen}
+        onCancel={() => {
+          setIsDeleteModalOpen(false);
+          setDeleteTargetEmployee(null);
+        }}
+        footer={null}
+      >
+        <p>Do you want to move <strong>{deleteTargetEmployee?.name}</strong> to the Recycle Bin or delete permanently?</p>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
+          <Button onClick={() => setIsDeleteModalOpen(false)}>Cancel</Button>
+          <Button
+            danger
+            onClick={async () => {
+              if (!deleteTargetEmployee) return;
+              try {
+                await employeeService.deleteEmployee(deleteTargetEmployee.id);
+                setEmployees(prev => prev.filter(emp => emp.id !== deleteTargetEmployee.id));
+                messageApi.success('Employee deleted permanently');
+                setIsDeleteModalOpen(false);
+              } catch (error) {
+                console.error('Error deleting employee:', error);
+                messageApi.error('Failed to delete employee');
+              }
+            }}
+          >
+            Delete Permanently
+          </Button>
+          <Button
+            type="primary"
+            onClick={async () => {
+              if (!deleteTargetEmployee) return;
+              try {
+                await employeeService.updateEmployee(deleteTargetEmployee.id, { status: 'Recycled' });
+                setEmployees(prev => prev.filter(emp => emp.id !== deleteTargetEmployee.id));
+                messageApi.success('Moved to Recycle Bin');
+                setIsDeleteModalOpen(false);
+                // Navigate to recycle bin? The user said "after clicking the recycle it should move to the restore page"
+                navigate('/employees/restore');
+              } catch (error) {
+                console.error('Error recycling employee:', error);
+                messageApi.error('Failed to move to Recycle Bin');
+              }
+            }}
+          >
+            Recycle Bin
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 };

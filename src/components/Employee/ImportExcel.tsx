@@ -11,7 +11,7 @@ import TemplateEditor, { TemplateColumn } from '../Common/TemplateEditor';
 const { Title, Text } = Typography;
 const { Panel } = Collapse;
 
-const DEFAULT_FIELD_CONFIG: TemplateColumn[] = [
+export const DEFAULT_FIELD_CONFIG: TemplateColumn[] = [
   { key: 'empIdNo', name: 'Employee ID', required: true, type: 'string', systemLabel: 'Employee ID' },
   { key: 'name', name: 'Full Name', required: true, type: 'string', systemLabel: 'Full Name' },
   { key: 'dateOfJoining', name: 'Date of Joining', required: true, type: 'date', systemLabel: 'Date of Joining' },

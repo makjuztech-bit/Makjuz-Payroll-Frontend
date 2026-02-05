@@ -1,20 +1,20 @@
 import React, { useState } from 'react';
-import { 
-  Typography, 
-  Card, 
-  Button, 
-  Table, 
-  Modal, 
-  Form, 
-  Input, 
-  Select,
-  message 
+import {
+  Typography,
+  Card,
+  Button,
+  Table,
+  Modal,
+  Form,
+  Input,
+
+  message
 } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { useCompany } from '../../context/CompanyContext';
 
 const { Title } = Typography;
-const { Option } = Select;
+
 
 const CompanySettings: React.FC = () => {
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -104,14 +104,9 @@ const CompanySettings: React.FC = () => {
           <Form.Item
             name="type"
             label="Company Type"
-            rules={[{ required: true, message: 'Please select company type!' }]}
+            rules={[{ required: true, message: 'Please enter company type!' }]}
           >
-            <Select>
-              <Option value="LLC">LLC</Option>
-              <Option value="Corporation">Corporation</Option>
-              <Option value="Partnership">Partnership</Option>
-              <Option value="Sole Proprietorship">Sole Proprietorship</Option>
-            </Select>
+            <Input placeholder="Enter company type" />
           </Form.Item>
 
           <Form.Item>

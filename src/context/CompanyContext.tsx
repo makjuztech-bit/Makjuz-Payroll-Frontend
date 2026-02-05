@@ -49,6 +49,8 @@ export interface Employee {
   salaryType?: string;
   employeeCategory?: string;
   customFields?: Record<string, string>;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface EmployeeFormValues {

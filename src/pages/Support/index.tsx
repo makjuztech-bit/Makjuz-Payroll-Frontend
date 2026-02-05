@@ -1,11 +1,11 @@
 import React from 'react';
-import { Card, Typography, Row, Col, Button, Space } from 'antd';
+import { Card, Typography, Row, Col, Space } from 'antd';
 import {
   MailOutlined,
   PhoneOutlined,
-  MessageOutlined,
   CustomerServiceOutlined,
 } from '@ant-design/icons';
+import ChatInterface from '../../components/Support/ChatInterface';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -17,7 +17,7 @@ const SupportPage: React.FC = () => {
       <Row gutter={[24, 24]}>
         {/* Contact Information Card */}
         <Col xs={24} md={12}>
-          <Card 
+          <Card
             variant="outlined"
             style={{ height: '100%', background: '#fff', borderRadius: '8px' }}
           >
@@ -28,7 +28,7 @@ const SupportPage: React.FC = () => {
               <Paragraph>
                 We're here to help! Choose your preferred way to contact us.
               </Paragraph>
-              
+
               <Space direction="vertical" size="middle" style={{ width: '100%' }}>
                 <Card variant="outlined" size="small">
                   <Space>
@@ -58,46 +58,14 @@ const SupportPage: React.FC = () => {
 
         {/* Live Chat Card */}
         <Col xs={24} md={12}>
-          <Card 
-            variant="outlined"
-            style={{ height: '100%', background: '#fff', borderRadius: '8px' }}
-          >
-            <Space direction="vertical" size="large" style={{ width: '100%' }}>
-              <Title level={4}>
-                <MessageOutlined /> Live Chat Support
-              </Title>
-              <Paragraph>
-                Need immediate assistance? Chat with our support team in real-time.
-              </Paragraph>
-              
-              <div style={{ 
-                background: '#f6ffed', 
-                padding: '24px',
-                borderRadius: '8px',
-                textAlign: 'center'
-              }}>
-                <Space direction="vertical" size="middle">
-                  <Text>Our support agents are ready to help you</Text>
-                  <Button 
-                    type="primary" 
-                    icon={<MessageOutlined />}
-                    size="large"
-                    onClick={() => {
-                      // Chat integration will be added here
-                      alert('Chat feature coming soon!');
-                    }}
-                  >
-                    Start Chat
-                  </Button>
-                </Space>
-              </div>
-            </Space>
-          </Card>
+          <div style={{ height: '100%' }}>
+            <ChatInterface />
+          </div>
         </Col>
 
         {/* Support Hours Card */}
         <Col xs={24}>
-          <Card 
+          <Card
             variant="outlined"
             style={{ background: '#fafafa', borderRadius: '8px' }}
           >

@@ -28,6 +28,7 @@ export interface Benefit {
   amount: number;
   active: boolean;
   company: string;  // Company ID
+  employee?: { _id: string; name: string; empIdNo: string } | string;
   createdAt: string;
 }
 

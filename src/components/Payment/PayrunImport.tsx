@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { 
-  Upload, Button, Modal, Alert, Progress, Table, 
+import {
+  Upload, Button, Modal, Alert, Progress, Table,
   Typography, Space, message, Card, Tabs, Switch
 } from 'antd';
 import { InboxOutlined, FileExcelOutlined, DownloadOutlined } from '@ant-design/icons';
@@ -58,13 +58,13 @@ const PayrunImport: React.FC<PayrunImportProps> = ({ month, year, onSuccess }) =
 
   const handleDownloadTemplate = async () => {
     try {
-      const response = await axios.get('/api/payruns/template', { 
+      const response = await axios.get('/api/payruns/template', {
         responseType: 'blob',
         headers: {
           Authorization: `Bearer ${localStorage.getItem('token')}`
         }
       });
-      
+
       // Create a download link
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
@@ -81,15 +81,15 @@ const PayrunImport: React.FC<PayrunImportProps> = ({ month, year, onSuccess }) =
 
   const handleUploadFile = async () => {
     if (!file || !selectedCompany) return;
-    
+
     setLoading(true);
     setUploadProgress(0);
-    
+
     const formData = new FormData();
     formData.append('payrunFile', file);
     formData.append('month', month);
     formData.append('year', year);
-    
+
     try {
       // Upload the file with progress tracking
       const response = await axios.post('/api/payruns/upload', formData, {
@@ -102,9 +102,9 @@ const PayrunImport: React.FC<PayrunImportProps> = ({ month, year, onSuccess }) =
           setUploadProgress(percentCompleted);
         }
       });
-      
+
       setImportResult(response.data);
-      
+
       if (response.data.errors.length === 0) {
         message.success('Payrun data imported successfully');
         // Trigger the onSuccess callback to refresh the payrun data
@@ -126,7 +126,7 @@ const PayrunImport: React.FC<PayrunImportProps> = ({ month, year, onSuccess }) =
     {
       title: 'SR.NO',
       key: 'srNo',
-      render: (_: any, record: any, index: number) => index + 1,
+      render: (_: any, _record: any, index: number) => index + 1,
     },
     {
       title: 'ID',
@@ -213,7 +213,7 @@ const PayrunImport: React.FC<PayrunImportProps> = ({ month, year, onSuccess }) =
     {
       title: 'CANTEEN',
       dataIndex: ['calculatedPayrun', 'canteen'],
-      key: 'canteen', 
+      key: 'canteen',
       render: (value: number) => `₹${value.toFixed(2)}`
     },
     {
@@ -257,6 +257,18 @@ const PayrunImport: React.FC<PayrunImportProps> = ({ month, year, onSuccess }) =
       dataIndex: ['calculatedPayrun', 'gst'],
       key: 'gst',
       render: (value: number) => `₹${value.toFixed(2)}`
+    },
+    {
+      title: 'PF AMOUNT',
+      dataIndex: ['calculatedPayrun', 'pfAmount'],
+      key: 'pfAmount',
+      render: (value: number) => `₹${value?.toFixed(2) || '0.00'}`
+    },
+    {
+      title: 'ESI AMOUNT',
+      dataIndex: ['calculatedPayrun', 'esiAmount'],
+      key: 'esiAmount',
+      render: (value: number) => `₹${value?.toFixed(2) || '0.00'}`
     },
     {
       title: 'GRAND TOTAL',
@@ -310,22 +322,22 @@ const PayrunImport: React.FC<PayrunImportProps> = ({ month, year, onSuccess }) =
     maxCount: 1,
     beforeUpload: (file: File) => {
       // Check file type
-      const isExcel = file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || 
-                      file.type === 'application/vnd.ms-excel' ||
-                      file.name.endsWith('.csv');
-      
+      const isExcel = file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+        file.type === 'application/vnd.ms-excel' ||
+        file.name.endsWith('.csv');
+
       if (!isExcel) {
         message.error('You can only upload Excel or CSV files!');
         return Upload.LIST_IGNORE;
       }
-      
+
       // Check file size (5MB max)
       const isLessThan5MB = file.size / 1024 / 1024 < 5;
       if (!isLessThan5MB) {
         message.error('File must be smaller than 5MB!');
         return Upload.LIST_IGNORE;
       }
-      
+
       setFile(file);
       return false; // Prevent automatic upload
     },
@@ -337,9 +349,9 @@ const PayrunImport: React.FC<PayrunImportProps> = ({ month, year, onSuccess }) =
 
   return (
     <>
-      <Button 
-        type="primary" 
-        icon={<FileExcelOutlined />} 
+      <Button
+        type="primary"
+        icon={<FileExcelOutlined />}
         onClick={showModal}
         style={{ marginRight: 8 }}
       >
@@ -355,10 +367,10 @@ const PayrunImport: React.FC<PayrunImportProps> = ({ month, year, onSuccess }) =
           <Button key="download" onClick={handleDownloadTemplate} icon={<DownloadOutlined />}>
             Download Template
           </Button>,
-          <Button 
-            key="submit" 
-            type="primary" 
-            loading={loading} 
+          <Button
+            key="submit"
+            type="primary"
+            loading={loading}
             onClick={handleUploadFile}
             disabled={!file}
           >
@@ -416,19 +428,19 @@ const PayrunImport: React.FC<PayrunImportProps> = ({ month, year, onSuccess }) =
                         <Text type="danger">Errors: {importResult.errors.length}</Text>
                       </Space>
                       <div style={{ marginTop: 8 }}>
-                        <Switch 
-                          checkedChildren="Detailed View" 
-                          unCheckedChildren="Simple View" 
-                          checked={showDetailedView} 
-                          onChange={setShowDetailedView} 
+                        <Switch
+                          checkedChildren="Detailed View"
+                          unCheckedChildren="Simple View"
+                          checked={showDetailedView}
+                          onChange={setShowDetailedView}
                         />
                       </div>
                     </Space>
                   </div>
-                  
+
                   <Tabs defaultActiveKey="success">
                     <TabPane tab="Successful Imports" key="success">
-                      <Table 
+                      <Table
                         dataSource={importResult.success}
                         columns={showDetailedView ? detailedColumns : basicColumns}
                         rowKey="employeeId"
@@ -438,7 +450,7 @@ const PayrunImport: React.FC<PayrunImportProps> = ({ month, year, onSuccess }) =
                       />
                     </TabPane>
                     <TabPane tab={`Errors (${importResult.errors.length})`} key="errors">
-                      <Table 
+                      <Table
                         dataSource={importResult.errors}
                         columns={errorColumns}
                         rowKey={(record) => `${record.row.ID || record.row['SR.NO'] || Math.random()}`}
