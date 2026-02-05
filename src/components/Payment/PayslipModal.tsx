@@ -3,6 +3,7 @@ import { Modal, Button, Typography, Divider, Row, Col, message } from 'antd';
 import { FileWordOutlined } from '@ant-design/icons';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import logo from '../../assets/image.png';
 import benefitService, { Benefit } from '../../services/benefitService';
 import payrunService from '../../services/payrunService';
 
@@ -181,7 +182,7 @@ const PayslipModal: React.FC<PayslipModalProps> = ({
         {/* Header Section */}
         <Row align="middle" justify="space-between" style={{ marginBottom: '20px' }}>
           <Col span={8}>
-            <img src="/src/assets/image.png" alt="Logo" style={{ maxWidth: '180px' }} />
+            <img src={logo} alt="Logo" style={{ maxWidth: '180px' }} />
           </Col>
           <Col span={8} style={{ textAlign: 'center' }}>
             <Title level={2} style={{ margin: 0, textDecoration: 'underline', color: '#000' }}>TAX INVOICE</Title>
