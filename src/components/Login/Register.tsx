@@ -31,7 +31,7 @@ const Register: React.FC = () => {
       }
 
       const response = await authService.register(username, password, email);
-      
+
       if (response.token) {
         // Registration successful, navigate to login
         navigate('/login');
@@ -96,8 +96,8 @@ const Register: React.FC = () => {
           />
         </div>
 
-        <button 
-          onClick={handleRegister} 
+        <button
+          onClick={handleRegister}
           disabled={loading}
           style={{ opacity: loading ? 0.7 : 1 }}
         >
