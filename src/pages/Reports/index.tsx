@@ -40,6 +40,18 @@ const ReportsPage: React.FC = () => {
   const [selectedMonth, setSelectedMonth] = useState<string>(new Date().toLocaleString('default', { month: 'long' }));
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
 
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  if (user.role !== 'md') {
+    return (
+      <div style={{ padding: 24, display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+        <Card style={{ textAlign: 'center', maxWidth: 400 }}>
+          <Title level={3} type="danger">Access Denied</Title>
+          <Text>You do not have permission to view this page. This section is restricted to MD users only.</Text>
+        </Card>
+      </div>
+    );
+  }
+
   // Expenses State
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [isExpenseModalVisible, setIsExpenseModalVisible] = useState(false);

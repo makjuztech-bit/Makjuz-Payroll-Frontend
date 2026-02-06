@@ -56,7 +56,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     }
   ];
 
-  const menuItems: MenuProps['items'] = [
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const role = user.role;
+
+  const allMenuItems: MenuProps['items'] = [
     {
       key: 'dashboard',
       icon: <DashboardOutlined />,
@@ -102,12 +105,14 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       icon: <SettingOutlined />,
       label: <Link to="/company-settings">Company Settings</Link>,
     },
-    // {
-    //   key: 'settings',
-    //   icon: <SettingOutlined />,
-    //   label: <Link to="/settings">Settings</Link>,
-    // },
   ];
+
+  const menuItems = allMenuItems.filter(item => {
+    if (item?.key === 'reports') {
+      return role === 'md';
+    }
+    return true;
+  });
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
